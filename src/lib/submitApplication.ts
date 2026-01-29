@@ -68,8 +68,14 @@ export async function submitApplication(formData: FormData): Promise<{ success: 
   console.log("Starting application submission for:", formData.email);
 
   try {
-    // Call HubSpot API via Vercel serverless function
-    const response = await fetch('/api/hubspot', {
+    // Use backend API URL from environment, fallback to local backend for development
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const endpoint = `${API_URL}/api/hubspot`;
+
+    console.log("Submitting to:", endpoint);
+
+    // Call HubSpot API via backend server
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
