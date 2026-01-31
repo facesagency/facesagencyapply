@@ -75,7 +75,7 @@ const sizeGuides = {
     ],
   },
   jacket: {
-    title: "Adult Jacket Size Guide",
+    title: "Adult Shirt Size Guide",
     headers: ["US", "UK", "EU"],
     rows: [
       ["XS", "6", "34"],
@@ -213,7 +213,7 @@ const MeasurementsStep = ({ data, gender, onChange }: MeasurementsStepProps) => 
             <Popover>
               <PopoverTrigger asChild>
                 <button className="text-xs bg-background hover:bg-accent border border-border rounded px-3 py-2 transition-colors">
-                  Jacket
+                  Shirt
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-56">
@@ -292,7 +292,7 @@ const MeasurementsStep = ({ data, gender, onChange }: MeasurementsStepProps) => 
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="jacketSize" className="text-xs md:text-sm">Jacket (US) *</Label>
+            <Label htmlFor="jacketSize" className="text-xs md:text-sm">Shirt (US) *</Label>
             <Select value={data.jacketSize} onValueChange={(value) => onChange("jacketSize", value)}>
               <SelectTrigger className="h-12 md:h-14">
                 <SelectValue placeholder="Size" />

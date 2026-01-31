@@ -28,8 +28,9 @@ export const mainInfoSchema = z.object({
 export const contactSchema = z.object({
   email: z
     .string()
-    .min(1, "Email is required")
-    .email("Please enter a valid email address"),
+    .email("Please enter a valid email address")
+    .optional()
+    .or(z.literal("")),
   mobile: z
     .string()
     .min(1, "Mobile number is required")
@@ -72,7 +73,7 @@ export const measurementsSchema = z.object({
   height: z.string().min(1, "Height is required"),
   weight: z.string().min(1, "Weight is required"),
   pantSize: z.string().min(1, "Pant size is required"),
-  jacketSize: z.string().min(1, "Jacket size is required"),
+  jacketSize: z.string().min(1, "Shirt size is required"),
   shoeSize: z.string().min(1, "Shoe size is required"),
   waist: z.string().optional(),
   bust: z.string().optional(),
