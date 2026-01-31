@@ -1,0 +1,125 @@
+{
+  "testData": {
+    "mainInfo": {
+      "gender": "female",
+      "firstName": "Sarah",
+      "middleName": "Marie",
+      "lastName": "Anderson",
+      "dateOfBirth": "1998-05-15",
+      "nationality": "Lebanese"
+    },
+    "contact": {
+      "email": "sarah.anderson@example.com",
+      "mobile": "71234567",
+      "mobileCountryCode": "+961",
+      "whatsapp": "71234567",
+      "whatsappCountryCode": "+961",
+      "otherNumber": "70987654",
+      "otherNumberCountryCode": "+961",
+      "otherNumberRelationship": "Mother",
+      "otherNumberPersonName": "Diana Anderson",
+      "instagram": "@sarahmodel",
+      "hasWhishAccount": "yes",
+      "whishNumber": "71234567",
+      "whishCountryCode": "+961"
+    },
+    "address": {
+      "governorate": "Beirut",
+      "district": "Beirut",
+      "area": "Hamra"
+    },
+    "languages": {
+      "languages": ["Arabic", "English", "French"],
+      "languageLevels": {
+        "Arabic": 5,
+        "English": 5,
+        "French": 4
+      },
+      "customLanguage": ""
+    },
+    "appearance": {
+      "eyeColor": "Brown",
+      "hairColor": "Brown",
+      "hairType": "Straight",
+      "hairLength": "Long",
+      "skinTone": "Medium",
+      "hasTattoos": false,
+      "hasPiercings": true,
+      "customEyeColor": "",
+      "customHairColor": ""
+    },
+    "measurements": {
+      "height": "170",
+      "weight": "58",
+      "pantSize": "S",
+      "jacketSize": "M",
+      "shoeSize": "38",
+      "bust": "86",
+      "waist": "65",
+      "hips": "92",
+      "shoulders": "38"
+    },
+    "talents": {
+      "talents": ["Acting", "Dancing", "Singing"],
+      "talentLevels": {
+        "Acting": 4,
+        "Dancing": 5,
+        "Singing": 3
+      },
+      "sports": ["Swimming", "Yoga"],
+      "sportLevels": {
+        "Swimming": 4,
+        "Yoga": 3
+      },
+      "modeling": ["Fashion", "Commercial"],
+      "customTalent": "",
+      "customSport": "",
+      "customModeling": ""
+    },
+    "availability": {
+      "experience": "2 years of experience in commercial modeling and some acting work",
+      "interestedInExtra": "yes",
+      "hasCar": "no",
+      "hasLicense": "yes",
+      "isEmployed": "no",
+      "canTravel": "yes",
+      "hasPassport": "yes",
+      "hasMultiplePassports": "no",
+      "passports": ["Lebanese"],
+      "comfortableWithSwimwear": true,
+      "cameraConfidence": 8,
+      "hasLookAlikeTwin": "no",
+      "howDidYouHear": "Instagram",
+      "howDidYouHearOther": ""
+    }
+  },
+  "instructions": {
+    "step0": "Click 'Get Started' button",
+    "step1": "Fill in Main Info - Name, Date of Birth, Nationality",
+    "step2": "Fill in Contact - Email, phone numbers, social media",
+    "step3": "Fill in Address & Languages - Select location and languages",
+    "step4": "Fill in Appearance - Eye color, hair, skin tone",
+    "step5": "Fill in Measurements - Height, weight, clothing sizes",
+    "step6": "Fill in Talents - Select talents, sports, modeling types",
+    "step7": "Fill in Availability - Employment, travel, passport info",
+    "step8": "Review and Submit"
+  },
+  "alternativeTestData": [
+    {
+      "name": "Male Model Example",
+      "gender": "male",
+      "firstName": "Adam",
+      "middleName": "James",
+      "lastName": "Harrison",
+      "dateOfBirth": "2000-03-20",
+      "nationality": "Lebanese",
+      "email": "adam.harrison@example.com",
+      "mobile": "76543210",
+      "height": "185",
+      "weight": "78",
+      "pantSize": "M",
+      "jacketSize": "L",
+      "shoeSize": "42"
+    }
+  ]
+}
