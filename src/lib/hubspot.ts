@@ -527,7 +527,7 @@ export async function syncToHubSpot(
 }
 
 
-  try {
+ try {
   console.log('[HubSpot] Transforming form data to HubSpot properties...');
 
   const hubspotProperties = transformToHubSpotProperties(formData); // ✅ ADD THIS LINE
@@ -538,7 +538,30 @@ export async function syncToHubSpot(
   console.log('[HubSpot] Cleaned properties count:', Object.keys(cleanedProperties).length);
   console.log('[HubSpot] Cleaned properties:', JSON.stringify(cleanedProperties, null, 2));
 
-  
+
+    if (existingContactId) {
+      // Update existing contact
+      console.log('[HubSpot] Updating existing contact...');
+      const result = await updateContact(existingContactId, cleanedProperties);
+      console.log('[HubSpot] Update result:', JSON.stringify(result));
+      return { ...result, contactId: existingContactId };
+    } else {
+      // Create new contact
+      console.log('[HubSpot] Creating new contact...');
+      const result = await createContact(cleanedProperties);
+      console.log('[HubSpot] Create result:', JSON.stringify(result));
+      return result;
+    }
+  } catch (error) {
+    console.error('[HubSpot] ========== UNEXPECTED ERROR ==========');
+    console.error('[HubSpot] Error type:', typeof error);
+    console.error('[HubSpot] Error:', error);
+    console.error('[HubSpot] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[HubSpot] Error stack:', error instanceof Error ? error.stack : 'No stack');
+    return { success: false, error: String(error) };
+  }
+}
+
 /**
  * Batch sync multiple contacts to HubSpot (for Excel imports)
  */
