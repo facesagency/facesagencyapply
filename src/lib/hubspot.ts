@@ -119,8 +119,8 @@ interface HubSpotContactProperties {
   faces_application_date?: string;
   faces_application_source?: string;}
 
-interface FormData {
-  gender: "male" | "female";
+export interface RegistrationFormData {
+
   firstName: string;
   middleName: string;
   lastName: string;
@@ -190,9 +190,8 @@ interface FormData {
 /**
  * Transform form data to HubSpot contact properties
  */
-export function transformToHubSpotProperties(
-  formData: FormData,
-): HubSpotContactProperties {
+export function transformToHubSpotProperties(formData: RegistrationFormData)
+
   return {
     // HubSpot built-in properties (no prefix, lowercase)
     email: formData.email,
@@ -264,8 +263,9 @@ export function transformToHubSpotProperties(
       ? JSON.stringify(formData.sportLevels)
       : undefined,
     faces_modeling_types: formData.modeling.length > 0 ? JSON.stringify(formData.modeling) : undefined,
-    faces_has_modeling_experience: formData.experience ? 'yes' : 'no',
-    faces_modeling_experience_details: formData.experience || undefined,
+faces_has_modeling_experience:
+  formData.experience?.toLowerCase() === "yes" ? "yes" : "no",
+
     faces_comfortable_with_swimwear: formData.comfortableWithSwimwear !== null
       ? String(formData.comfortableWithSwimwear)
       : undefined,
@@ -463,9 +463,8 @@ async function updateContact(
  * Sync form submission to HubSpot
  * Creates a new contact or updates existing one (upsert)
  */
-export async function syncToHubSpot(
-  formData: FormData
-): Promise<{ success: boolean; contactId?: string; error?: string }> {
+export async function syncToHubSpot(formData: RegistrationFormData)
+ {
   console.log("[HubSpot] ========== Starting sync ==========");
   console.log("[HubSpot] IS_DEV:", IS_DEV);
   console.log("[HubSpot] Form data received:", JSON.stringify(formData, null, 2));
