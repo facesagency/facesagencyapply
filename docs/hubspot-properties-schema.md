@@ -122,7 +122,7 @@ This document defines all custom HubSpot contact properties required for the Fac
 |---------------|-------|------|------------|----------|---------------|
 | `faces_application_date` | Application Date | datetime | date | Auto | When form was submitted |
 | `faces_application_source` | Application Source | enumeration | select | Auto | `website`, `excel_import`, `manual` |
-| `faces_supabase_id` | Supabase Record ID | string | text | Auto | Links to Supabase applications table |
+
 
 ---
 

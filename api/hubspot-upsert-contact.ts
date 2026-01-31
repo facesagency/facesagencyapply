@@ -73,7 +73,7 @@ interface ContactData {
   // System Fields
   applicationDate?: string;
   applicationSource?: string;
-  supabaseId?: string;
+
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
