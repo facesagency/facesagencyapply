@@ -464,23 +464,68 @@ async function updateContact(
  * Creates a new contact or updates existing one (upsert)
  */
 export async function syncToHubSpot(
-  formData: FormData,
-
+  formData: FormData
 ): Promise<{ success: boolean; contactId?: string; error?: string }> {
-  console.log('[HubSpot] ========== Starting sync ==========');
-  console.log('[HubSpot] IS_DEV:', IS_DEV);
-  console.log('[HubSpot] Form data received:', JSON.stringify(formData, null, 2));
+  console.log("[HubSpot] ========== Starting sync ==========");
+  console.log("[HubSpot] IS_DEV:", IS_DEV);
+  console.log("[HubSpot] Form data received:", JSON.stringify(formData, null, 2));
 
   // In dev mode, check for access token (proxy needs it)
   // In production, serverless function has the token
   if (IS_DEV) {
     const accessToken = import.meta.env.VITE_HUBSPOT_ACCESS_TOKEN;
-    console.log('[HubSpot] Access token exists:', !!accessToken);
+    console.log("[HubSpot] Access token exists:", !!accessToken);
     if (!accessToken) {
-      console.warn('[HubSpot] Access token not configured - skipping sync');
+      console.warn("[HubSpot] Access token not configured - skipping sync");
       return { success: true };
     }
   }
+
+  try {
+    console.log("[HubSpot] Transforming form data to HubSpot properties...");
+
+    // ✅ Define hubspotProperties before using it
+    const hubspotProperties = transformToHubSpotProperties(formData);
+
+    console.log(
+      "[HubSpot] Raw transformed properties:",
+      JSON.stringify(hubspotProperties, null, 2)
+    );
+
+    const cleanedProperties = cleanProperties(hubspotProperties);
+    console.log("[HubSpot] Cleaned properties count:", Object.keys(cleanedProperties).length);
+    console.log("[HubSpot] Cleaned properties:", JSON.stringify(cleanedProperties, null, 2));
+
+    // Search for existing contact by mobile number
+    const mobileNumber = `${formData.mobileCountryCode} ${formData.mobile}`;
+    console.log("[HubSpot] Searching for existing contact with mobile:", mobileNumber);
+
+    const existingContactId = await searchContactByPhone(mobileNumber);
+    console.log("[HubSpot] Existing contact ID:", existingContactId);
+
+    if (existingContactId) {
+      // Update existing contact
+      console.log("[HubSpot] Updating existing contact...");
+      const result = await updateContact(existingContactId, cleanedProperties);
+      console.log("[HubSpot] Update result:", JSON.stringify(result));
+      return { ...result, contactId: existingContactId };
+    } else {
+      // Create new contact
+      console.log("[HubSpot] Creating new contact...");
+      const result = await createContact(cleanedProperties);
+      console.log("[HubSpot] Create result:", JSON.stringify(result));
+      return result;
+    }
+  } catch (error) {
+    console.error("[HubSpot] ========== UNEXPECTED ERROR ==========");
+    console.error("[HubSpot] Error type:", typeof error);
+    console.error("[HubSpot] Error:", error);
+    console.error("[HubSpot] Error message:", error instanceof Error ? error.message : String(error));
+    console.error("[HubSpot] Error stack:", error instanceof Error ? error.stack : "No stack");
+    return { success: false, error: String(error) };
+  }
+}
+
 
   try {
     console.log('[HubSpot] Transforming form data to HubSpot properties...');
