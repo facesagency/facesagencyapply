@@ -148,7 +148,13 @@ For each property above:
 
 Required for website sync:
 - HubSpot Private App with scopes: `crm.objects.contacts.read`, `crm.objects.contacts.write`
-- Store the access token as environment variable: `HUBSPOT_ACCESS_TOKEN`
+- Store the access token as a server-side environment variable in Vercel:
+  - `HUBSPOT_ACCESS_TOKEN`
+
+Security note:
+- Do NOT expose the private token in client-side variables (e.g. `VITE_*`).
+- The website should call a serverless API route which uses `HUBSPOT_ACCESS_TOKEN`.
+
 
 ---
 
