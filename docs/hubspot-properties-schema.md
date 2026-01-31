@@ -7,6 +7,10 @@ This document defines all custom HubSpot contact properties required for the Fac
 - All custom properties use the prefix `faces_`
 - Snake_case naming (e.g., `faces_first_name`)
 - Group: `faces_agency` (create this custom property group in HubSpot)
+> **Note:** In the application code we use camelCase naming
+> (`firstName`, `middleName`, `lastName`) and map to `faces_*`
+> snake_case properties **only inside** `src/lib/hubspot.ts`.
+
 
 ---
 
