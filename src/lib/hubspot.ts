@@ -526,8 +526,7 @@ export async function syncToHubSpot(
   }
 }
 
-
- try {
+try {
   console.log('[HubSpot] Transforming form data to HubSpot properties...');
 
   const hubspotProperties = transformToHubSpotProperties(formData); // ✅ ADD THIS LINE
@@ -538,7 +537,7 @@ export async function syncToHubSpot(
   console.log('[HubSpot] Cleaned properties count:', Object.keys(cleanedProperties).length);
   console.log('[HubSpot] Cleaned properties:', JSON.stringify(cleanedProperties, null, 2));
 
-
+ 
     if (existingContactId) {
       // Update existing contact
       console.log('[HubSpot] Updating existing contact...');
