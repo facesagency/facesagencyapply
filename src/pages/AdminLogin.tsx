@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import {  } from "@/integrations//client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,14 +19,14 @@ const AdminLogin = () => {
 
   useEffect(() => {
     // Check if already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    .auth.getSession().then(({ data: { session } }) => {
       if (session) {
         // Check if user is admin
         checkAdminRole(session.user.id);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = .auth.onAuthStateChange((event, session) => {
       if (session) {
         checkAdminRole(session.user.id);
       }
@@ -36,7 +36,7 @@ const AdminLogin = () => {
   }, []);
 
   const checkAdminRole = async (userId: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await 
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
@@ -53,7 +53,7 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await .auth.signInWithPassword({
         email,
         password,
       });
@@ -69,7 +69,7 @@ const AdminLogin = () => {
 
       if (data.user) {
         // Check if user is admin
-        const { data: roleData, error: roleError } = await supabase
+        const { data: roleData, error: roleError } = await 
           .from("user_roles")
           .select("role")
           .eq("user_id", data.user.id)
@@ -77,7 +77,7 @@ const AdminLogin = () => {
           .maybeSingle();
 
         if (roleError || !roleData) {
-          await supabase.auth.signOut();
+          await .auth.signOut();
           toast({
             title: "Access Denied",
             description: "You do not have admin privileges.",

@@ -86,7 +86,7 @@ const testContact = {
     // System fields
     faces_application_date: new Date().toISOString(),
     faces_application_source: 'website',
-    faces_supabase_id: `test-${timestamp}`
+ 
   }
 };
 

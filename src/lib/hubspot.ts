@@ -117,9 +117,7 @@ interface HubSpotContactProperties {
 
   // System
   faces_application_date?: string;
-  faces_application_source?: string;
-  faces_supabase_id?: string;
-}
+  faces_application_source?: string;}
 
 interface FormData {
   gender: "male" | "female";
@@ -194,7 +192,6 @@ interface FormData {
  */
 export function transformToHubSpotProperties(
   formData: FormData,
-  supabaseId?: string
 ): HubSpotContactProperties {
   return {
     // HubSpot built-in properties (no prefix, lowercase)
@@ -295,9 +292,7 @@ export function transformToHubSpotProperties(
 
     // System fields
     faces_application_date: new Date().toISOString(),
-    faces_application_source: 'website',
-    faces_supabase_id: supabaseId,
-  };
+    faces_application_source: 'website',  };
 }
 
 /**
@@ -470,7 +465,7 @@ async function updateContact(
  */
 export async function syncToHubSpot(
   formData: FormData,
-  supabaseId?: string
+
 ): Promise<{ success: boolean; contactId?: string; error?: string }> {
   console.log('[HubSpot] ========== Starting sync ==========');
   console.log('[HubSpot] IS_DEV:', IS_DEV);
@@ -489,7 +484,6 @@ export async function syncToHubSpot(
 
   try {
     console.log('[HubSpot] Transforming form data to HubSpot properties...');
-    const hubspotProperties = transformToHubSpotProperties(formData, supabaseId);
     console.log('[HubSpot] Raw transformed properties:', JSON.stringify(hubspotProperties, null, 2));
 
     const cleanedProperties = cleanProperties(hubspotProperties);

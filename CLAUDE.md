@@ -20,7 +20,6 @@ npm run preview   # Preview production build
 
 - **Framework**: React 18 + TypeScript + Vite
 - **UI**: shadcn/ui components (Radix primitives) + Tailwind CSS
-- **Database**: Supabase (PostgreSQL) with auto-generated types
 - **State**: React Query for server state, useState for local
 - **Forms**: React Hook Form + Zod validation
 - **Routing**: React Router DOM v6
@@ -37,9 +36,7 @@ npm run preview   # Preview production build
 │   │   ├── RegistrationForm.tsx  # Main form controller
 │   │   └── /steps/     # 9 form step components
 │   └── /ui             # shadcn/ui components
-├── /integrations/supabase
-│   ├── client.ts       # Supabase client init
-│   └── types.ts        # Auto-generated DB types
+
 ├── /lib
 │   ├── formValidation.ts   # Zod schemas
 │   └── submitApplication.ts
@@ -64,16 +61,10 @@ Role system: `user_roles` table with `has_role(_user_id, _role)` function for ac
 
 - **Form validation**: Zod schemas in `/lib/formValidation.ts` with step-specific validation
 - **Multi-step form**: State managed in `RegistrationForm.tsx`, each step is a separate component
-- **Admin access**: JWT auth via Supabase, role checked against `user_roles` table
+
 - **Location data**: Hierarchical Lebanese locations (governorates → districts → areas)
 
-## Environment Variables
 
-```
-VITE_SUPABASE_URL
-VITE_SUPABASE_PUBLISHABLE_KEY
-VITE_SUPABASE_PROJECT_ID
-```
 
 ## Path Alias
 
@@ -111,9 +102,9 @@ HubSpot is the authoritative database. All other systems feed into it or read fr
 - **File**: `src/lib/hubspot.ts` - HubSpot API integration service
 - **Integration Point**: `src/lib/submitApplication.ts` - Syncs on form submission
 - **Behavior**: When a user submits the registration form:
-  1. Data is saved to Supabase (primary storage)
-  2. Data is synced to HubSpot asynchronously (non-blocking)
-  3. If contact exists (matched by phone), it updates; otherwise creates new
+
+  1. Data is synced to HubSpot asynchronously (non-blocking)
+  2. If contact exists (matched by phone), it updates; otherwise creates new
 - **Properties Schema**: See `docs/hubspot-properties-schema.md` for complete mapping
 
 #### Excel Import (IMPLEMENTED)
@@ -156,13 +147,3 @@ HubSpot is the authoritative database. All other systems feed into it or read fr
    - All properties use `faces_` prefix
    - Create property group: "Faces Agency"
 
-### Data Flow
-
-```
-[Website Form] --> [Supabase] --> [HubSpot]
-                       |              ^
-                       v              |
-              [Admin Dashboard]       |
-                                      |
-[Excel Files] ---(import script)------+
-```
