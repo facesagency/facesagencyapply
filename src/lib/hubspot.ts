@@ -329,12 +329,17 @@ async function searchContactByPhone(
       filterGroups: [
         {
           filters: [
-            { propertyName: 'mobile', operator: 'EQ', value: phoneNumber },
+            { propertyName: 'phone', operator: 'EQ', value: phoneNumber },
           ],
         },
         {
           filters: [
-            { propertyName: 'whatsapp', operator: 'EQ', value: phoneNumber },
+            { propertyName: 'faces_mobile', operator: 'EQ', value: phoneNumber },
+          ],
+        },
+        {
+          filters: [
+            { propertyName: 'faces_whatsapp', operator: 'EQ', value: phoneNumber },
           ],
         },
       ],
