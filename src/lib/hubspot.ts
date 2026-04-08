@@ -18,6 +18,21 @@ const SERVERLESS_ENDPOINT = '/api/hubspot-submit';
  * Capitalize first letter of each word (for HubSpot enum fields)
  * "mother" -> "Mother", "dark brown" -> "Dark Brown"
  */
+function calculateAgeCategory(dateOfBirth: string): string {
+  if (!dateOfBirth) return '';
+  const today = new Date();
+  const dob = new Date(dateOfBirth);
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  if (age >= 3 && age <= 12) return 'Kids (3-12)';
+  if (age >= 13 && age <= 17) return 'Teens (13-17)';
+  if (age >= 18 && age <= 25) return 'Young Adult (18-25)';
+  if (age >= 26 && age <= 40) return 'Adult (26-40)';
+  if (age >= 41 && age <= 55) return 'Mature (41-55)';
+  if (age >= 56) return 'Senior (56+)';
+  return '';
+}
 function capitalizeWords(str: string): string {
   if (!str) return str;
   return str
@@ -119,8 +134,8 @@ interface HubSpotContactProperties {
   faces_application_date?: string;
   faces_application_source?: string;
   faces_supabase_id?: string;
+age_category?: string;
 }
-
 interface FormData {
   gender: "male" | "female";
   firstName: string;
@@ -294,6 +309,7 @@ export function transformToHubSpotProperties(
       : undefined,
 
     // System fields
+    age_category: formData.dateOfBirth ? calculateAgeCategory(formData.dateOfBirth) : undefined,
     faces_application_date: new Date().toISOString(),
     faces_application_source: 'website',
     faces_supabase_id: supabaseId,
