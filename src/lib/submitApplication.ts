@@ -85,6 +85,22 @@ export async function submitApplication(formData: FormData): Promise<{ success: 
     }
 
     console.log("[submitApplication] Success! Contact ID:", hubspotResult.contactId);
+    // Trigger n8n folder creation
+    try {
+      await fetch('https://symphony-unending-zoologist.ngrok-free.dev/webhook/5221bba6-eddf-476f-9562-fb534f61c4d3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          body: {
+            firstname: formData.firstName,
+            lastname: formData.lastName,
+            gender: formData.gender
+          }
+        })
+      });
+    } catch (webhookErr) {
+      console.error('[submitApplication] Webhook error:', webhookErr);
+    }
     return { success: true };
   } catch (err) {
     console.error("[submitApplication] ========== UNEXPECTED ERROR ==========");
