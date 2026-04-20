@@ -85,17 +85,17 @@ export async function submitApplication(formData: FormData): Promise<{ success: 
     }
 
     console.log("[submitApplication] Success! Contact ID:", hubspotResult.contactId);
-    // Trigger n8n folder creation
+// Trigger folder creation directly
     try {
-      await fetch('https://symphony-unending-zoologist.ngrok-free.dev/webhook/5221bba6-eddf-476f-9562-fb534f61c4d3', {
+      await fetch('https://symphony-unending-zoologist.ngrok-free.dev/webhook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          body: {
-            firstname: formData.firstName,
-            lastname: formData.lastName,
-            gender: formData.gender
-          }
+          firstname: formData.firstName,
+          lastname: formData.lastName,
+          faces_gender: formData.gender,
+          talent_id: hubspotResult.contactId || 'F-0000',
+          faces_date_of_birth: formData.dateOfBirth
         })
       });
     } catch (webhookErr) {
