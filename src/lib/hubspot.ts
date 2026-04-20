@@ -134,6 +134,7 @@ interface HubSpotContactProperties {
   faces_application_date?: string;
   faces_application_source?: string;
   faces_supabase_id?: string;
+  talent_id?: string; 
 age_category?: string;
 }
 interface FormData {
@@ -209,7 +210,8 @@ interface FormData {
  */
 export function transformToHubSpotProperties(
   formData: FormData,
-  supabaseId?: string
+  supabaseId?: string,
+  talentId?: string
 ): HubSpotContactProperties {
   return {
     // HubSpot built-in properties (no prefix, lowercase)
@@ -311,7 +313,8 @@ export function transformToHubSpotProperties(
     // System fields
     age_category: formData.dateOfBirth ? calculateAgeCategory(formData.dateOfBirth) : undefined,
     faces_application_date: new Date().toISOString(),
-    faces_application_source: 'website',
+   faces_application_source: 'website',
+talent_id: talentId || undefined,
     faces_supabase_id: supabaseId,
   };
 }
@@ -486,7 +489,8 @@ async function updateContact(
  */
 export async function syncToHubSpot(
   formData: FormData,
-  supabaseId?: string
+  supabaseId?: string,
+  talentId?: string
 ): Promise<{ success: boolean; contactId?: string; error?: string }> {
   console.log('[HubSpot] ========== Starting sync ==========');
   console.log('[HubSpot] IS_DEV:', IS_DEV);
@@ -505,7 +509,7 @@ export async function syncToHubSpot(
 
   try {
     console.log('[HubSpot] Transforming form data to HubSpot properties...');
-    const hubspotProperties = transformToHubSpotProperties(formData, supabaseId);
+    const hubspotProperties = transformToHubSpotProperties(formData, supabaseId, talentId);
     console.log('[HubSpot] Raw transformed properties:', JSON.stringify(hubspotProperties, null, 2));
 
     const cleanedProperties = cleanProperties(hubspotProperties);
