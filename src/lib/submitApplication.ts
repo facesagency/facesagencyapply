@@ -73,19 +73,30 @@ export async function submitApplication(formData: FormData): Promise<{ success: 
   console.log("[submitApplication] Received formData:", JSON.stringify(formData, null, 2));
 
   try {
-    // Send directly to HubSpot (single source of truth)
+    // Step 1: Get next F-XXXX talent ID from server
+    let talentId = '';
+    try {
+      const idRes = await fetch('https://symphony-unending-zoologist.ngrok-free.dev/next-id');
+      const idData = await idRes.json();
+      talentId = idData.id || '';
+      console.log('[submitApplication] Got talentId:', talentId);
+    } catch (idErr) {
+      console.error('[submitApplication] Failed to get talent ID:', idErr);
+    }
+
+    // Step 2: Sync to HubSpot with talentId
     console.log("[submitApplication] Calling syncToHubSpot...");
-    const hubspotResult = await syncToHubSpot(formData);
+    const hubspotResult = await syncToHubSpot(formData, undefined, talentId);
     console.log("[submitApplication] syncToHubSpot returned:", JSON.stringify(hubspotResult));
 
     if (!hubspotResult.success) {
       console.error("[submitApplication] HubSpot sync failed:", hubspotResult.error);
-      // Return the actual error message so user can see what's wrong
       return { success: false, error: hubspotResult.error || "Failed to submit application. Please try again." };
     }
 
     console.log("[submitApplication] Success! Contact ID:", hubspotResult.contactId);
-// Trigger folder creation directly
+
+    // Step 3: Trigger folder creation with correct F-XXXX talentId
     try {
       await fetch('https://symphony-unending-zoologist.ngrok-free.dev/webhook', {
         method: 'POST',
@@ -94,20 +105,21 @@ export async function submitApplication(formData: FormData): Promise<{ success: 
           firstname: formData.firstName,
           lastname: formData.lastName,
           faces_gender: formData.gender,
-          talent_id: hubspotResult.contactId || 'F-0000',
+          talent_id: talentId,
           faces_date_of_birth: formData.dateOfBirth
         })
       });
     } catch (webhookErr) {
       console.error('[submitApplication] Webhook error:', webhookErr);
     }
+
     return { success: true };
+
   } catch (err) {
     console.error("[submitApplication] ========== UNEXPECTED ERROR ==========");
     console.error("[submitApplication] Error:", err);
     console.error("[submitApplication] Error type:", typeof err);
     console.error("[submitApplication] Error message:", err instanceof Error ? err.message : String(err));
-    // Return the actual error message
     const errorMessage = err instanceof Error ? err.message : String(err);
     return { success: false, error: `Submission error: ${errorMessage}` };
   }
