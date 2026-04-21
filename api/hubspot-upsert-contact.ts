@@ -12,6 +12,7 @@ interface ContactData {
   governorate?: string;
   district?: string;
   area?: string;
+  talentId?: string;
 
   // Personal Information
   gender?: string;
@@ -115,6 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (contactData.district) properties.faces_district = contactData.district;
     if (contactData.area) properties.faces_area = contactData.area;
     if (contactData.cameraConfidence) properties.faces_camera_confidence = String(contactData.cameraConfidence);
+    if (contactData.talentId) properties.talent_id = contactData.talentId;
 
     console.log('Upserting contact to HubSpot:', contactData.email);
     // Create or update contact in HubSpot
