@@ -10,7 +10,7 @@
 
 // In development: use Vite proxy to HubSpot API directly
 // In production: use our serverless function at /api/hubspot-submit
-const IS_DEV = import.meta.env.DEV;
+const IS_DEV = false;
 const HUBSPOT_API_URL = IS_DEV ? '/api/hubspot' : '';
 const SERVERLESS_ENDPOINT = '/api/hubspot-submit';
 
