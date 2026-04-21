@@ -71,11 +71,14 @@ interface FormData {
 export async function submitApplication(formData: FormData): Promise<{ success: boolean; error?: string }> {
   console.log("[submitApplication] ========== Starting ==========");
   console.log("[submitApplication] Received formData:", JSON.stringify(formData, null, 2));
+
   try {
     // Step 1: Get next F-XXXX talent ID from server
     let talentId = '';
     try {
-      const idRes = await fetch('https://symphony-unending-zoologist.ngrok-free.dev/next-id');
+      const idRes = await fetch('https://symphony-unending-zoologist.ngrok-free.dev/next-id', {
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      });
       const idData = await idRes.json();
       talentId = idData.talentId || '';
       console.log('[submitApplication] Got talentId:', talentId);
@@ -99,7 +102,10 @@ export async function submitApplication(formData: FormData): Promise<{ success: 
     try {
       await fetch('https://symphony-unending-zoologist.ngrok-free.dev/webhook', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
         body: JSON.stringify({
           firstname: formData.firstName,
           lastname: formData.lastName,
