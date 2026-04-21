@@ -12,6 +12,7 @@ interface ContactData {
   governorate?: string;
   district?: string;
   area?: string;
+  talentId?: string;
 
   // Personal Information
   gender?: string;
@@ -77,7 +78,6 @@ interface ContactData {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Handle CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -99,9 +99,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const contactData: ContactData = req.body;
-    console.log('Received contact data:', { email: contactData.email });
+    console.log('Received contact data:', { email: contactData.email, talentId: contactData.talentId });
 
-// Prepare HubSpot contact properties
     const properties: Record<string, string> = {
       email: contactData.email,
     };
@@ -115,9 +114,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (contactData.district) properties.faces_district = contactData.district;
     if (contactData.area) properties.faces_area = contactData.area;
     if (contactData.cameraConfidence) properties.faces_camera_confidence = String(contactData.cameraConfidence);
+    if (contactData.talentId) properties.talent_id = contactData.talentId;
 
     console.log('Upserting contact to HubSpot:', contactData.email);
-    // Create or update contact in HubSpot
+
     const hubspotResponse = await fetch(
       'https://api.hubapi.com/crm/v3/objects/contacts',
       {
@@ -126,9 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
         },
-        body: JSON.stringify({
-          properties,
-        }),
+        body: JSON.stringify({ properties }),
       }
     );
 
@@ -136,11 +134,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const errorText = await hubspotResponse.text();
       console.error('HubSpot API Error:', errorText);
 
-      // If contact already exists (409), try to update instead
       if (hubspotResponse.status === 409) {
         console.log('Contact exists, searching for contact ID...');
 
-        // Search for contact by email
         const searchResponse = await fetch(
           'https://api.hubapi.com/crm/v3/objects/contacts/search',
           {
@@ -171,7 +167,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const contactId = searchData.results[0].id;
             console.log('Found contact ID:', contactId, '- updating...');
 
-            // Update the existing contact
             const updateResponse = await fetch(
               `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
               {
@@ -180,9 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
                 },
-                body: JSON.stringify({
-                  properties,
-                }),
+                body: JSON.stringify({ properties }),
               }
             );
 
