@@ -1,4 +1,4 @@
-/**
+/** 
  * HubSpot Integration Service
  *
  * Syncs form submissions to HubSpot as contacts.
