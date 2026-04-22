@@ -26,10 +26,10 @@ export const mainInfoSchema = z.object({
 });
 
 export const contactSchema = z.object({
-email: z.union([
-  z.literal(""),
-  z.string().email("Please enter a valid email address"),
-]).optional(),
+email: z.string().refine(
+  (val) => val === "" || /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val),
+  { message: "Please enter a valid email address" }
+),
   mobile: z
     .string()
     .min(1, "Mobile number is required")
