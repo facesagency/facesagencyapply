@@ -26,10 +26,11 @@ export const mainInfoSchema = z.object({
 });
 
 export const contactSchema = z.object({
-  email: z
+email: z
     .string()
-    .min(1, "Email is required")
-    .email("Please enter a valid email address"),
+    .email("Please enter a valid email address")
+    .optional()
+    .or(z.literal("")),
   mobile: z
     .string()
     .min(1, "Mobile number is required")
