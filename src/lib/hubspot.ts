@@ -304,11 +304,7 @@ export function transformToHubSpotProperties(
     faces_has_look_alike_twin: formData.hasLookAlikeTwin || undefined,
 
     // Referral
-    faces_how_did_you_hear: formData.howDidYouHear
-      ? (formData.howDidYouHear === "Other" && formData.howDidYouHearOther
-        ? `Other: ${formData.howDidYouHearOther}`
-        : formData.howDidYouHear)
-      : undefined,
+    faces_how_did_you_hear: formData.howDidYouHear || undefined,
 
     // System fields
     age_category: formData.dateOfBirth ? calculateAgeCategory(formData.dateOfBirth) : undefined,
