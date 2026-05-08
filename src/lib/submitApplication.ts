@@ -1,131 +1,247 @@
-import { syncToHubSpot } from "./hubspot";
+/**
+ * ============================================================
+ *  FACES AGENCY — Local Folder Automation Server
+ *  Version: 1.1
+ *  Port: 3000
+ * ============================================================
+ *  Receives POST requests from n8n (via ngrok tunnel) and
+ *  automatically creates talent folders on your Mac in the
+ *  correct location based on gender.
+ *
+ *  Folder structure created:
+ *  FACES DATABASE/
+ *    Males/   → F-0001_John Doe/
+ *    Females/ → F-0002_Jane Smith/
+ * ============================================================
+ */
 
-interface FormData {
-  gender: "male" | "female";
-  firstName: string;
-  middleName: string;
-  lastName: string;
-  dateOfBirth: string;
-  nationality: string;
-  email: string;
-  mobile: string;
-  mobileCountryCode: string;
-  whatsapp: string;
-  whatsappCountryCode: string;
-  otherNumber: string;
-  otherNumberCountryCode: string;
-  otherNumberRelationship: string;
-  otherNumberPersonName: string;
-  instagram: string;
-  hasWhishAccount: string;
-  whishNumber: string;
-  whishCountryCode: string;
-  governorate: string;
-  district: string;
-  area: string;
-  languages: string[];
-  languageLevels: Record<string, number>;
-  customLanguage: string;
-  height: string;
-  weight: string;
-  pantSize: string;
-  jacketSize: string;
-  shoeSize: string;
-  bust: string;
-  waist: string;
-  hips: string;
-  eyeColor: string;
-  hairColor: string;
-  hairType: string;
-  hairLength: string;
-  skinTone: string;
-  hasTattoos: boolean;
-  hasPiercings: boolean;
-  customEyeColor: string;
-  customHairColor: string;
-  shoulders: string;
-  talents: string[];
-  talentLevels: Record<string, number>;
-  sports: string[];
-  sportLevels: Record<string, number>;
-  modeling: string[];
-  customTalent: string;
-  customSport: string;
-  customModeling: string;
-  experience: string;
-  cameraConfidence: number;
-  interestedInExtra: string;
-  hasCar: string;
-  hasLicense: string;
-  isEmployed: string;
-  canTravel: string;
-  hasPassport: string;
-  hasMultiplePassports: string;
-  passports: string[];
-  comfortableWithSwimwear: boolean | null;
-  hasLookAlikeTwin: string;
-  howDidYouHear: string;
-  howDidYouHearOther: string;
+const http   = require('http');
+const fs     = require('fs');
+const path   = require('path');
+
+// ─── CONFIG ──────────────────────────────────────────────────
+const BASE_PATH   = '/Users/facesagency/Desktop/FACES DATABASE';
+const PORT        = 3000;
+const SECRET_KEY  = 'faces2024';
+const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY || '';
+// ─────────────────────────────────────────────────────────────
+
+function ensureBaseFolders() {
+  ['Males', 'Females'].forEach(sub => {
+    const dir = path.join(BASE_PATH, sub);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      log(`📁 Created base folder: ${dir}`);
+    }
+  });
 }
 
-export async function submitApplication(formData: FormData): Promise<{ success: boolean; error?: string }> {
-  console.log("[submitApplication] ========== Starting ==========");
-  console.log("[submitApplication] Received formData:", JSON.stringify(formData, null, 2));
+function sanitiseName(name = '') {
+  return name
+    .trim()
+    .replace(/[\/\\:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ');
+}
 
-  try {
-    // Step 1: Get next F-XXXX talent ID from server
-    let talentId = '';
-    try {
-      const idRes = await fetch('https://symphony-unending-zoologist.ngrok-free.dev/next-id', {
-        headers: { 'ngrok-skip-browser-warning': 'true' }
-      });
-      const idData = await idRes.json();
-      talentId = idData.talentId || '';
-      console.log('[submitApplication] Got talentId:', talentId);
-    } catch (idErr) {
-      console.error('[submitApplication] Failed to get talent ID:', idErr);
+function log(msg) {
+  const ts = new Date().toLocaleString('en-GB', { hour12: false });
+  console.log(`[${ts}] ${msg}`);
+}
+
+// ─── GET NEXT FREE TALENT ID FROM HUBSPOT ────────────────────
+async function getNextTalentId() {
+  log('🔍 Fetching all existing talent IDs from HubSpot...');
+
+  let allContacts = [];
+  let after = undefined;
+
+  // Fetch all contacts that already have a talent_id
+  do {
+    const body = {
+      filterGroups: [{ filters: [{ propertyName: 'talent_id', operator: 'HAS_PROPERTY' }] }],
+      properties: ['talent_id'],
+      limit: 100,
+      ...(after && { after }),
+    };
+
+    const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${HUBSPOT_API_KEY}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      log(`❌ HubSpot API error: ${JSON.stringify(data)}`);
+      throw new Error('Failed to fetch contacts from HubSpot');
     }
 
-    // Step 2: Sync to HubSpot with talentId
-    console.log("[submitApplication] Calling syncToHubSpot...");
-    const hubspotResult = await syncToHubSpot(formData, undefined, talentId);
-    console.log("[submitApplication] syncToHubSpot returned:", JSON.stringify(hubspotResult));
+    allContacts = allContacts.concat(data.results || []);
+    after = data.paging?.next?.after;
+  } while (after);
 
-    if (!hubspotResult.success) {
-      console.error("[submitApplication] HubSpot sync failed:", hubspotResult.error);
-      return { success: false, error: hubspotResult.error || "Failed to submit application. Please try again." };
+  // Build a SET of all existing IDs for fast lookup
+  const existingIds = new Set(
+    allContacts
+      .map(c => c.properties?.talent_id)
+      .filter(Boolean)
+  );
+
+  log(`📋 Found ${existingIds.size} existing talent IDs`);
+
+  // Find the highest number currently used
+  let maxNum = 0;
+  for (const id of existingIds) {
+    const match = id.match(/^F-(\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > maxNum) maxNum = num;
     }
-
-    console.log("[submitApplication] Success! Contact ID:", hubspotResult.contactId);
-
-    // Step 3: Trigger folder creation with correct F-XXXX talentId
-    try {
-      await fetch('https://symphony-unending-zoologist.ngrok-free.dev/webhook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({
-          firstname: formData.firstName,
-          lastname: formData.lastName,
-          faces_gender: formData.gender,
-          talent_id: talentId,
-          faces_date_of_birth: formData.dateOfBirth
-        })
-      });
-    } catch (webhookErr) {
-      console.error('[submitApplication] Webhook error:', webhookErr);
-    }
-
-    return { success: true };
-
-  } catch (err) {
-    console.error("[submitApplication] ========== UNEXPECTED ERROR ==========");
-    console.error("[submitApplication] Error:", err);
-    console.error("[submitApplication] Error type:", typeof err);
-    console.error("[submitApplication] Error message:", err instanceof Error ? err.message : String(err));
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    return { success: false, error: `Submission error: ${errorMessage}` };
   }
+
+  // Find the next number that is NOT already taken
+  let nextNum = maxNum + 1;
+  while (existingIds.has(`F-${String(nextNum).padStart(4, '0')}`)) {
+    nextNum++;
+  }
+
+  const newId = `F-${String(nextNum).padStart(4, '0')}`;
+  log(`✅ Next free talent ID: ${newId}`);
+  return newId;
 }
+
+// ─── REQUEST HANDLER ─────────────────────────────────────────
+const server = http.createServer((req, res) => {
+
+  // Health check
+  if (req.method === 'GET' && req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', server: 'Faces Automation Server v1.1' }));
+    return;
+  }
+
+  // ── GET /next-id — returns the next available F-XXXX ID ──
+  if (req.method === 'GET' && req.url === '/next-id') {
+    getNextTalentId()
+      .then(talentId => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ talentId }));
+      })
+      .catch(err => {
+        log(`❌ Error getting next ID: ${err.message}`);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      });
+    return;
+  }
+
+  // Only handle POST /create-folder
+  if (req.method !== 'POST' || req.url !== '/create-folder') {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not found' }));
+    return;
+  }
+
+  // ── Auth check ───────────────────────────────────────────
+  const authHeader = req.headers['x-faces-key'];
+  if (authHeader !== SECRET_KEY) {
+    log(`🚫 Unauthorised request blocked`);
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Unauthorised' }));
+    return;
+  }
+
+  // ── Read body ────────────────────────────────────────────
+  let body = '';
+  req.on('data', chunk => { body += chunk; });
+
+  req.on('end', () => {
+    try {
+      const data = JSON.parse(body);
+
+      const { talentId, fullName, gender } = data;
+
+      if (!talentId || !fullName || !gender) {
+        log(`⚠️  Missing fields — received: ${JSON.stringify(data)}`);
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing required fields: talentId, fullName, gender' }));
+        return;
+      }
+
+      const genderNorm = gender.trim().toLowerCase();
+      let genderFolder;
+
+      if (genderNorm === 'male' || genderNorm === 'm') {
+        genderFolder = 'Males';
+      } else if (genderNorm === 'female' || genderNorm === 'f') {
+        genderFolder = 'Females';
+      } else {
+        genderFolder = 'Unclassified';
+        log(`⚠️  Unknown gender "${gender}" — placing in Unclassified/`);
+      }
+
+      const cleanName   = sanitiseName(fullName);
+      const folderName  = `${talentId}_${cleanName}`;
+      const targetPath  = path.join(BASE_PATH, genderFolder, folderName);
+
+      if (fs.existsSync(targetPath)) {
+        log(`⚠️  Folder already exists: ${targetPath}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          created: false,
+          message: 'Folder already exists',
+          path: targetPath
+        }));
+        return;
+      }
+
+      fs.mkdirSync(targetPath, { recursive: true });
+      log(`✅ Created: ${targetPath}`);
+
+      const logLine = `${new Date().toISOString()} | ${talentId} | ${fullName} | ${genderFolder} | ${targetPath}\n`;
+      const logFile = path.join(BASE_PATH, 'creation_log.txt');
+      fs.appendFileSync(logFile, logLine);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        created: true,
+        path: targetPath,
+        folderName
+      }));
+
+    } catch (err) {
+      log(`❌ Error: ${err.message}`);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  });
+
+  req.on('error', err => {
+    log(`❌ Request error: ${err.message}`);
+  });
+});
+
+// ─── START ───────────────────────────────────────────────────
+ensureBaseFolders();
+
+server.listen(PORT, '127.0.0.1', () => {
+  log(`🎬 Faces Automation Server running on port ${PORT}`);
+  log(`📂 Base path: ${BASE_PATH}`);
+  log(`🔑 Auth key : ${SECRET_KEY}`);
+  log(`🩺 Health   : http://127.0.0.1:${PORT}/health`);
+});
+
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ Port ${PORT} is already in use. Kill the existing process first:\n   lsof -ti:${PORT} | xargs kill\n`);
+  } else {
+    console.error(`\n❌ Server error: ${err.message}`);
+  }
+  process.exit(1);
+});
