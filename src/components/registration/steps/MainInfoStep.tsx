@@ -5,7 +5,7 @@ import { nationalities, countryCodes } from "@/data/lebanese-locations";
 
 interface MainInfoStepProps {
   data: {
-    gender: "male" | "female";
+    gender: "" | "male" | "female";
     firstName: string;
     middleName: string;
     lastName: string;
@@ -26,6 +26,9 @@ const calculateAge = (dateOfBirth: string): number | null => {
   }
   return age;
 };
+
+// Lebanese pinned first — nobody scrolls to L
+const orderedNationalities = ["Lebanese", ...nationalities.filter((n) => n !== "Lebanese")];
 
 const MainInfoStep = ({ data, onChange }: MainInfoStepProps) => {
   const age = calculateAge(data.dateOfBirth);
@@ -110,6 +113,7 @@ const MainInfoStep = ({ data, onChange }: MainInfoStepProps) => {
             <Input
               id="dateOfBirth"
               type="date"
+              max={new Date().toISOString().split("T")[0]}
               value={data.dateOfBirth}
               onChange={(e) => onChange("dateOfBirth", e.target.value)}
               className="h-12 flex-1"
@@ -132,7 +136,7 @@ const MainInfoStep = ({ data, onChange }: MainInfoStepProps) => {
               <SelectValue placeholder="Select nationality" />
             </SelectTrigger>
             <SelectContent>
-              {nationalities.map((nationality) => (
+              {orderedNationalities.map((nationality) => (
                 <SelectItem key={nationality} value={nationality}>
                   {nationality}
                 </SelectItem>

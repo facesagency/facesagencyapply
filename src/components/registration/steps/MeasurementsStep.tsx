@@ -14,20 +14,49 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+// Baby sizes (under 3)
+const babyClothingSizes = ["0-3m", "3-6m", "6-9m", "9-12m", "12-18m", "18-24m"];
+const babyShoeSizes = ["16", "17", "18", "19", "20", "21"];
+
 // Children's sizes
 const childPantSizes = ["2T", "3T", "4T", "5", "6", "7", "8", "10", "12", "14", "16"];
 const childJacketSizes = ["2T", "3T", "4T", "5", "6", "7", "8", "10", "12", "14", "16"];
 const childShoeSizes = ["22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35"];
 
 // Adult sizes
-const adultPantSizes = ["28", "30", "32", "34", "36", "38", "40", "42", "44"];
-const adultJacketSizes = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
-const adultShoeSizes = ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48"];
+const adultPantSizes = ["28", "30", "32", "34", "36", "38", "40", "42", "44", "46", "48"];
+const adultJacketSizes = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL"];
+const adultShoeSizes = ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50"];
 
-// Combined sizes for dropdowns
-const allPantSizes = [...childPantSizes, ...adultPantSizes];
-const allJacketSizes = [...childJacketSizes, ...adultJacketSizes];
-const allShoeSizes = [...childShoeSizes, ...adultShoeSizes];
+// Combined sizes for dropdowns (fallback when age is unknown)
+const allPantSizes = [...babyClothingSizes, ...childPantSizes, ...adultPantSizes];
+const allJacketSizes = [...babyClothingSizes, ...childJacketSizes, ...adultJacketSizes];
+const allShoeSizes = [...babyShoeSizes, ...childShoeSizes, ...adultShoeSizes];
+
+// Age-driven size lists: babies see baby sizes, kids see child sizes, adults see adult sizes
+const calcAge = (dateOfBirth: string): number | null => {
+  if (!dateOfBirth) return null;
+  const birthDate = new Date(dateOfBirth);
+  if (isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
+};
+
+const sizesForAge = (age: number | null) => {
+  if (age !== null && age < 3) {
+    return { pants: [...babyClothingSizes, ...childPantSizes], jackets: [...babyClothingSizes, ...childJacketSizes], shoes: [...babyShoeSizes, ...childShoeSizes] };
+  }
+  if (age !== null && age < 13) {
+    return { pants: [...childPantSizes, ...adultPantSizes.slice(0, 3)], jackets: [...childJacketSizes, "XS", "S"], shoes: [...childShoeSizes, "36", "37", "38"] };
+  }
+  if (age !== null) {
+    return { pants: adultPantSizes, jackets: adultJacketSizes, shoes: adultShoeSizes };
+  }
+  return { pants: allPantSizes, jackets: allJacketSizes, shoes: allShoeSizes };
+};
 
 const sizeGuides = {
   childPants: {
@@ -153,11 +182,15 @@ interface MeasurementsStepProps {
     hips: string;
     shoulders: string;
   };
-  gender: "male" | "female";
+  gender: "" | "male" | "female";
+  dateOfBirth: string;
   onChange: (field: string, value: string) => void;
 }
 
-const MeasurementsStep = ({ data, gender, onChange }: MeasurementsStepProps) => {
+const MeasurementsStep = ({ data, gender, dateOfBirth, onChange }: MeasurementsStepProps) => {
+  const age = calcAge(dateOfBirth);
+  const isBaby = age !== null && age < 3;
+  const isChild = age !== null && age < 13;
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
@@ -280,14 +313,30 @@ const MeasurementsStep = ({ data, gender, onChange }: MeasurementsStepProps) => 
                 <SelectValue placeholder="Size" />
               </SelectTrigger>
               <SelectContent>
-                <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Children</div>
-                {childPantSizes.map((size) => (
-                  <SelectItem key={`child-${size}`} value={size}>{size}</SelectItem>
-                ))}
-                <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">Adults</div>
-                {adultPantSizes.map((size) => (
-                  <SelectItem key={`adult-${size}`} value={size}>{size}</SelectItem>
-                ))}
+                {(isBaby || age === null) && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Babies</div>
+                    {babyClothingSizes.map((size) => (
+                      <SelectItem key={`baby-${size}`} value={size}>{size}</SelectItem>
+                    ))}
+                  </>
+                )}
+                {(isChild || age === null) && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">Children</div>
+                    {childPantSizes.map((size) => (
+                      <SelectItem key={`child-${size}`} value={size}>{size}</SelectItem>
+                    ))}
+                  </>
+                )}
+                {(!isBaby || age === null) && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">Adults</div>
+                    {adultPantSizes.map((size) => (
+                      <SelectItem key={`adult-${size}`} value={size}>{size}</SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -298,14 +347,30 @@ const MeasurementsStep = ({ data, gender, onChange }: MeasurementsStepProps) => 
                 <SelectValue placeholder="Size" />
               </SelectTrigger>
               <SelectContent>
-                <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Children</div>
-                {childJacketSizes.map((size) => (
-                  <SelectItem key={`child-${size}`} value={size}>{size}</SelectItem>
-                ))}
-                <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">Adults</div>
-                {adultJacketSizes.map((size) => (
-                  <SelectItem key={`adult-${size}`} value={size}>{size}</SelectItem>
-                ))}
+                {(isBaby || age === null) && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Babies</div>
+                    {babyClothingSizes.map((size) => (
+                      <SelectItem key={`baby-${size}`} value={size}>{size}</SelectItem>
+                    ))}
+                  </>
+                )}
+                {(isChild || age === null) && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">Children</div>
+                    {childJacketSizes.map((size) => (
+                      <SelectItem key={`child-${size}`} value={size}>{size}</SelectItem>
+                    ))}
+                  </>
+                )}
+                {(!isBaby || age === null) && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">Adults</div>
+                    {adultJacketSizes.map((size) => (
+                      <SelectItem key={`adult-${size}`} value={size}>{size}</SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -316,14 +381,30 @@ const MeasurementsStep = ({ data, gender, onChange }: MeasurementsStepProps) => 
                 <SelectValue placeholder="Size" />
               </SelectTrigger>
               <SelectContent>
-                <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Children</div>
-                {childShoeSizes.map((size) => (
-                  <SelectItem key={`child-${size}`} value={size}>{size}</SelectItem>
-                ))}
-                <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">Adults</div>
-                {adultShoeSizes.map((size) => (
-                  <SelectItem key={`adult-${size}`} value={size}>{size}</SelectItem>
-                ))}
+                {(isBaby || age === null) && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Babies</div>
+                    {babyShoeSizes.map((size) => (
+                      <SelectItem key={`baby-${size}`} value={size}>{size}</SelectItem>
+                    ))}
+                  </>
+                )}
+                {(isChild || age === null) && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">Children</div>
+                    {childShoeSizes.map((size) => (
+                      <SelectItem key={`child-${size}`} value={size}>{size}</SelectItem>
+                    ))}
+                  </>
+                )}
+                {(!isBaby || age === null) && (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">Adults</div>
+                    {adultShoeSizes.map((size) => (
+                      <SelectItem key={`adult-${size}`} value={size}>{size}</SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>

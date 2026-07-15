@@ -4,27 +4,22 @@
  * Syncs form submissions to HubSpot as contacts.
  * HubSpot is the single source of truth for all customer data.
  *
- * NOTE: Browser-based calls use a CORS proxy or serverless function
- * since HubSpot's CRM API doesn't support browser CORS.
+ * Multi-select properties receive semicolon-separated values (HubSpot wire format).
+ * Duplicate detection follows the FAMILY RULE:
+ *   same phone + same first name + same date of birth  -> same person (update)
+ *   same phone + different name/DOB                    -> family member (create new)
  */
 
-// In development: use Vite proxy to HubSpot API directly
-// In production: use our serverless function at /api/hubspot-submit
-const IS_DEV = false;
-const HUBSPOT_API_URL = IS_DEV ? '/api/hubspot' : '';
 const SERVERLESS_ENDPOINT = '/api/hubspot-submit';
 
-/**
- * Capitalize first letter of each word (for HubSpot enum fields)
- * "mother" -> "Mother", "dark brown" -> "Dark Brown"
- */
-function calculateAgeCategory(dateOfBirth: string): string {
+export function calculateAgeCategory(dateOfBirth: string): string {
   if (!dateOfBirth) return '';
   const today = new Date();
   const dob = new Date(dateOfBirth);
   let age = today.getFullYear() - dob.getFullYear();
   const m = today.getMonth() - dob.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  if (age >= 0 && age <= 2) return 'Babies (0-2)';
   if (age >= 3 && age <= 12) return 'Kids (3-12)';
   if (age >= 13 && age <= 17) return 'Teens (13-17)';
   if (age >= 18 && age <= 25) return 'Young Adult (18-25)';
@@ -33,6 +28,21 @@ function calculateAgeCategory(dateOfBirth: string): string {
   if (age >= 56) return 'Senior (56+)';
   return '';
 }
+
+function calculateAge(dateOfBirth: string): number | null {
+  if (!dateOfBirth) return null;
+  const today = new Date();
+  const dob = new Date(dateOfBirth);
+  if (isNaN(dob.getTime())) return null;
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age;
+}
+
+/**
+ * Capitalize first letter of each word (for HubSpot enum fields)
+ */
 function capitalizeWords(str: string): string {
   if (!str) return str;
   return str
@@ -41,104 +51,40 @@ function capitalizeWords(str: string): string {
     .join(' ');
 }
 
-/**
- * Get headers for HubSpot API requests
- * In dev mode, proxy adds Authorization. In production, serverless handles auth.
- */
-function getHeaders(): Record<string, string> {
-  return {
-    'Content-Type': 'application/json',
+/** Map form yes/no strings to HubSpot dropdown options ("Yes"/"No"/"Maybe"/"Want to know more") */
+function toOption(value: string): string | undefined {
+  if (!value) return undefined;
+  const map: Record<string, string> = {
+    yes: 'Yes',
+    no: 'No',
+    maybe: 'Maybe',
+    more: 'Want to know more',
   };
+  return map[value] || capitalizeWords(value);
 }
 
-interface HubSpotContactProperties {
-  // HubSpot built-in properties (no prefix, lowercase)
-  email?: string;
-  firstname?: string;
-  lastname?: string;
-  phone?: string;
-
-  // Custom Properties - All use faces_ prefix with snake_case
-  // Personal Info
-  faces_gender?: string;
-  faces_first_name?: string;
-  faces_middle_name?: string;
-  faces_last_name?: string;
-  faces_date_of_birth?: string;
-  faces_nationality?: string;
-
-  // Contact Info
-  faces_mobile?: string;
-  faces_whatsapp?: string;
-  faces_other_number?: string;
-  faces_other_number_relationship?: string;
-  faces_other_number_person_name?: string;
-  faces_instagram?: string;
-  faces_has_whish_account?: string;
-  faces_whish_number?: string;
-
-  // Location
-  faces_governorate?: string;
-  faces_district?: string;
-  faces_area?: string;
-
-  // Languages
-  faces_languages?: string;
-  faces_language_levels?: string;
-
-  // Appearance
-  faces_eye_color?: string;
-  faces_hair_color?: string;
-  faces_hair_type?: string;
-  faces_hair_length?: string;
-  faces_skin_tone?: string;
-  faces_has_tattoos?: string;
-  faces_has_piercings?: string;
-
-  // Measurements
-  faces_height_cm?: string;
-  faces_weight_kg?: string;
-  faces_pant_size?: string;
-  faces_jacket_size?: string;
-  faces_shoe_size?: string;
-  faces_bust_cm?: string;
-  faces_waist_cm?: string;
-  faces_hips_cm?: string;
-  faces_shoulders_cm?: string;
-
-  // Talents & Skills
-  faces_talents?: string;
-  faces_talent_levels?: string;
-  faces_sports?: string;
-  faces_sport_levels?: string;
-  faces_modeling_types?: string;
-  faces_has_modeling_experience?: string;
-  faces_modeling_experience_details?: string;
-  faces_comfortable_with_swimwear?: string;
-  faces_interested_in_extra_work?: string;
-  faces_camera_confidence?: string;
-
-  // Availability
-  faces_has_car?: string;
-  faces_has_driving_license?: string;
-  faces_willing_to_travel?: string;
-  faces_has_valid_passport?: string;
-  faces_has_multiple_passports?: string;
-  faces_passport_countries?: string;
-  faces_has_look_alike_twin?: string;
-
-  // Referral
-  faces_how_did_you_hear?: string;
-
-  // System
-  faces_application_date?: string;
-  faces_application_source?: string;
-  faces_supabase_id?: string;
-  talent_id?: string; 
-age_category?: string;
+/** Multi-select wire format: semicolon-separated values */
+function toMultiSelect(values: string[]): string | undefined {
+  const clean = (values || []).filter(Boolean);
+  return clean.length > 0 ? clean.join(';') : undefined;
 }
-interface FormData {
-  gender: "male" | "female";
+
+function getHeaders(): Record<string, string> {
+  return { 'Content-Type': 'application/json' };
+}
+
+/** Detect office-mode applications via ?source=office in the URL */
+function getApplicationSource(): string {
+  try {
+    const source = new URLSearchParams(window.location.search).get('source');
+    return source === 'office' ? 'office' : 'website';
+  } catch {
+    return 'website';
+  }
+}
+
+export interface FormData {
+  gender: "" | "male" | "female";
   firstName: string;
   middleName: string;
   lastName: string;
@@ -154,13 +100,11 @@ interface FormData {
   otherNumberRelationship: string;
   otherNumberPersonName: string;
   instagram: string;
-  hasWhishAccount: string;
-  whishNumber: string;
-  whishCountryCode: string;
   governorate: string;
   district: string;
   area: string;
   languages: string[];
+  otherLanguages: string[];
   languageLevels: Record<string, number>;
   customLanguage: string;
   height: string;
@@ -182,27 +126,31 @@ interface FormData {
   customHairColor: string;
   shoulders: string;
   talents: string[];
-  talentLevels: Record<string, number>;
-  sports: string[];
-  sportLevels: Record<string, number>;
-  modeling: string[];
-  customTalent: string;
-  customSport: string;
-  customModeling: string;
+  danceStyles: string[];
+  musicalInstruments: string[];
+  instrumentLevels: Record<string, number>;
   experience: string;
   cameraConfidence: number;
   interestedInExtra: string;
+  willingShaveBeard: string;
+  aiProjectsInterest: string;
+  alcoholAdsOk: string;
+  sports: string[];
   hasCar: string;
   hasLicense: string;
-  isEmployed: string;
   canTravel: string;
   hasPassport: string;
   hasMultiplePassports: string;
   passports: string[];
-  comfortableWithSwimwear: boolean | null;
+  visasHeld: string[];
+  visaExpiries: Record<string, string>;
   hasLookAlikeTwin: string;
   howDidYouHear: string;
   howDidYouHearOther: string;
+}
+
+interface HubSpotContactProperties {
+  [key: string]: string | undefined;
 }
 
 /**
@@ -210,56 +158,59 @@ interface FormData {
  */
 export function transformToHubSpotProperties(
   formData: FormData,
-  supabaseId?: string,
   talentId?: string
 ): HubSpotContactProperties {
+  const age = calculateAge(formData.dateOfBirth);
+
+  // Merge main + other languages into one clean multi-select value
+  const allLanguages = [
+    ...(formData.languages || []),
+    ...(formData.otherLanguages || []),
+  ].filter((l, i, arr) => l && arr.indexOf(l) === i);
+
   return {
-    // HubSpot built-in properties (no prefix, lowercase)
-    email: formData.email,
+    // HubSpot built-in properties
+    email: formData.email || undefined,
     firstname: formData.firstName,
     lastname: formData.lastName,
     phone: `${formData.mobileCountryCode} ${formData.mobile}`,
 
-    // Personal Info - all use faces_ prefix
-    faces_gender: formData.gender,
+    // Personal Info
+    faces_gender: formData.gender || undefined,
     faces_middle_name: formData.middleName,
     faces_date_of_birth: formData.dateOfBirth,
     faces_nationality: formData.nationality,
 
-    // Contact Info - combine country code with number
+    // Contact Info
     faces_mobile: `${formData.mobileCountryCode} ${formData.mobile}`,
     faces_whatsapp: `${formData.whatsappCountryCode} ${formData.whatsapp}`,
     faces_other_number: formData.otherNumber
       ? `${formData.otherNumberCountryCode} ${formData.otherNumber}`
       : undefined,
-    // Capitalize relationship for HubSpot enum (Mother, Father, etc.)
     faces_other_number_relationship: formData.otherNumberRelationship
       ? capitalizeWords(formData.otherNumberRelationship)
       : undefined,
     faces_other_number_person_name: formData.otherNumberPersonName || undefined,
     faces_instagram: formData.instagram || undefined,
-    faces_has_whish_account: formData.hasWhishAccount || undefined,
-    faces_whish_number: formData.whishNumber
-      ? `${formData.whishCountryCode} ${formData.whishNumber}`
-      : undefined,
 
     // Location
     faces_governorate: formData.governorate,
     faces_district: formData.district,
     faces_area: formData.area,
 
-    // Languages - store as JSON strings (only if non-empty)
-    faces_languages: formData.languages.length > 0 ? JSON.stringify(formData.languages) : undefined,
-    faces_language_levels: Object.keys(formData.languageLevels).length > 0
-      ? JSON.stringify(formData.languageLevels) : undefined,
+    // Languages — multi-select (semicolon-separated); levels stay JSON metadata
+    faces_languages: toMultiSelect(allLanguages),
+    faces_language_levels: Object.keys(formData.languageLevels || {}).length > 0
+      ? JSON.stringify(formData.languageLevels)
+      : undefined,
 
-    // Appearance - use custom values if provided
-    // Capitalize enum fields for HubSpot (Straight, Wavy, Short, Medium, etc.)
-    faces_eye_color: formData.customEyeColor || formData.eyeColor,
-    faces_hair_color: formData.customHairColor || formData.hairColor,
+    // Appearance — always send the selected enum value; free-text customs are
+    // never sent into enum properties (they would be rejected by HubSpot)
+    faces_eye_color: formData.eyeColor || undefined,
+    faces_hair_color: formData.hairColor || undefined,
     faces_hair_type: formData.hairType ? capitalizeWords(formData.hairType) : undefined,
     faces_hair_length: formData.hairLength ? capitalizeWords(formData.hairLength) : undefined,
-    faces_skin_tone: formData.skinTone,
+    faces_skin_tone: formData.skinTone || undefined,
     faces_has_tattoos: formData.hasTattoos ? 'true' : 'false',
     faces_has_piercings: formData.hasPiercings ? 'true' : 'false',
 
@@ -274,23 +225,26 @@ export function transformToHubSpotProperties(
     faces_hips_cm: formData.hips || undefined,
     faces_shoulders_cm: formData.shoulders || undefined,
 
-    // Talents & Skills - store as JSON strings
-    faces_talents: formData.talents.length > 0 ? JSON.stringify(formData.talents) : undefined,
-    faces_talent_levels: Object.keys(formData.talentLevels).length > 0
-      ? JSON.stringify(formData.talentLevels)
+    // Talents & Skills — multi-selects (semicolon-separated)
+    faces_talents: toMultiSelect(formData.talents),
+    dance_styles: toMultiSelect(formData.danceStyles),
+    musical_instruments: toMultiSelect(formData.musicalInstruments),
+    instrument_levels: Object.keys(formData.instrumentLevels || {}).length > 0
+      ? JSON.stringify(formData.instrumentLevels)
       : undefined,
-    faces_sports: formData.sports.length > 0 ? JSON.stringify(formData.sports) : undefined,
-    faces_sport_levels: Object.keys(formData.sportLevels).length > 0
-      ? JSON.stringify(formData.sportLevels)
-      : undefined,
-    faces_modeling_types: formData.modeling.length > 0 ? JSON.stringify(formData.modeling) : undefined,
-    faces_has_modeling_experience: formData.experience ? 'yes' : 'no',
-    faces_modeling_experience_details: formData.experience || undefined,
-    faces_comfortable_with_swimwear: formData.comfortableWithSwimwear !== null
-      ? String(formData.comfortableWithSwimwear)
-      : undefined,
+    faces_sports: toMultiSelect(formData.sports),
+    faces_has_modeling_experience: formData.experience === 'yes' ? 'yes' : 'no',
     faces_interested_in_extra_work: formData.interestedInExtra || undefined,
     faces_camera_confidence: formData.cameraConfidence ? String(formData.cameraConfidence) : undefined,
+
+    // New casting questions (age/gender-conditional; only sent when answered)
+    willing_to_shave_beard: formData.gender === 'male' && age !== null && age >= 13
+      ? toOption(formData.willingShaveBeard)
+      : undefined,
+    faces_ai_projects_interest: toOption(formData.aiProjectsInterest),
+    faces_alcohol_ads_ok: age !== null && age >= 18
+      ? toOption(formData.alcoholAdsOk)
+      : undefined,
 
     // Availability
     faces_has_car: formData.hasCar || undefined,
@@ -298,24 +252,22 @@ export function transformToHubSpotProperties(
     faces_willing_to_travel: formData.canTravel || undefined,
     faces_has_valid_passport: formData.hasPassport || undefined,
     faces_has_multiple_passports: formData.hasMultiplePassports || undefined,
-    faces_passport_countries: formData.passports.length > 0
-      ? JSON.stringify(formData.passports)
+    faces_passport_countries: toMultiSelect(formData.passports),
+    faces_visas_held: toMultiSelect(formData.visasHeld),
+    faces_visa_expiries: Object.keys(formData.visaExpiries || {}).length > 0
+      ? JSON.stringify(formData.visaExpiries)
       : undefined,
     faces_has_look_alike_twin: formData.hasLookAlikeTwin || undefined,
 
-    // Referral
-    faces_how_did_you_hear: formData.howDidYouHear
-      ? (formData.howDidYouHear === "Other" && formData.howDidYouHearOther
-        ? `Other: ${formData.howDidYouHearOther}`
-        : formData.howDidYouHear)
-      : undefined,
+    // Referral — send the selection only; free text goes to its own field, never
+    // concatenated into the dropdown value
+    faces_how_did_you_hear: formData.howDidYouHear || undefined,
 
     // System fields
     age_category: formData.dateOfBirth ? calculateAgeCategory(formData.dateOfBirth) : undefined,
     faces_application_date: new Date().toISOString(),
-   faces_application_source: 'website',
-talent_id: talentId || undefined,
-    faces_supabase_id: supabaseId,
+    faces_application_source: getApplicationSource(),
+    talent_id: talentId || undefined,
   };
 }
 
@@ -327,72 +279,62 @@ function cleanProperties(props: HubSpotContactProperties): Record<string, string
   for (const [key, value] of Object.entries(props)) {
     if (value !== undefined && value !== null) {
       const strValue = String(value).trim();
-      // Skip empty strings but allow "[]" for empty arrays if needed
       if (strValue !== '' && strValue !== '[]' && strValue !== '{}') {
         cleaned[key] = strValue;
       }
     }
   }
-  console.log('[HubSpot] Cleaned properties:', cleaned);
   return cleaned;
 }
 
 /**
- * Search for existing contact by phone number
+ * FAMILY-RULE duplicate detection.
+ * Searches HubSpot by the applicant's phone numbers, then only treats a result
+ * as "the same person" when first name AND date of birth also match.
+ * One family sharing a phone number = multiple distinct contacts, no error.
  */
-async function searchContactByPhone(
-  phoneNumber: string
+async function findSamePersonByPhone(
+  mobileNumber: string,
+  whatsappNumber: string,
+  firstName: string,
+  dateOfBirth: string
 ): Promise<string | null> {
   try {
     const searchParams = {
       filterGroups: [
-        {
-          filters: [
-            { propertyName: 'mobile', operator: 'EQ', value: phoneNumber },
-          ],
-        },
-        {
-          filters: [
-            { propertyName: 'whatsapp', operator: 'EQ', value: phoneNumber },
-          ],
-        },
+        { filters: [{ propertyName: 'faces_mobile', operator: 'EQ', value: mobileNumber }] },
+        { filters: [{ propertyName: 'faces_whatsapp', operator: 'EQ', value: whatsappNumber }] },
+        { filters: [{ propertyName: 'phone', operator: 'EQ', value: mobileNumber }] },
       ],
+      properties: ['firstname', 'faces_date_of_birth'],
+      limit: 50,
     };
 
-    let response: Response;
+    const response = await fetch(SERVERLESS_ENDPOINT, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ action: 'search', searchParams }),
+    });
 
-    if (IS_DEV) {
-      // Dev: use Vite proxy directly to HubSpot
-      const url = `${HUBSPOT_API_URL}/crm/v3/objects/contacts/search`;
-      console.log('[HubSpot] Search URL:', url);
-      response = await fetch(url, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(searchParams),
-      });
-    } else {
-      // Production: use serverless function
-      response = await fetch(SERVERLESS_ENDPOINT, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ action: 'search', searchParams }),
-      });
-    }
-
-    console.log('[HubSpot] Search response status:', response.status);
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[HubSpot] Search error:', errorText);
+      console.error('[HubSpot] Search error:', await response.text());
       return null;
     }
 
     const data = await response.json();
-    // Production serverless returns { success, data } wrapper
-    const results = IS_DEV ? data.results : data.data?.results;
-    console.log('[HubSpot] Search results count:', results?.length || 0);
-    if (results && results.length > 0) {
-      return results[0].id;
+    const results = data.data?.results || [];
+    console.log('[HubSpot] Phone matches found:', results.length);
+
+    const normalizedFirst = (firstName || '').trim().toLowerCase();
+    for (const contact of results) {
+      const candidateFirst = (contact.properties?.firstname || '').trim().toLowerCase();
+      const candidateDob = (contact.properties?.faces_date_of_birth || '').trim();
+      if (candidateFirst === normalizedFirst && candidateDob === dateOfBirth.trim()) {
+        console.log('[HubSpot] Same person found (phone + name + DOB match):', contact.id);
+        return contact.id;
+      }
     }
+    // Phone matched but name/DOB did not -> family member, create a new contact
     return null;
   } catch (error) {
     console.error('[HubSpot] Error searching contact:', error);
@@ -400,82 +342,43 @@ async function searchContactByPhone(
   }
 }
 
-/**
- * Create a new contact in HubSpot
- */
 async function createContact(
   properties: Record<string, string>
 ): Promise<{ success: boolean; contactId?: string; error?: string }> {
   try {
-    let response: Response;
-
-    if (IS_DEV) {
-      // Dev: use Vite proxy directly to HubSpot
-      const url = `${HUBSPOT_API_URL}/crm/v3/objects/contacts`;
-      console.log('[HubSpot] Create URL:', url);
-      response = await fetch(url, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ properties }),
-      });
-    } else {
-      // Production: use serverless function
-      response = await fetch(SERVERLESS_ENDPOINT, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ action: 'create', properties }),
-      });
-    }
-
-    console.log('[HubSpot] Create response status:', response.status);
+    const response = await fetch(SERVERLESS_ENDPOINT, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ action: 'create', properties }),
+    });
     if (!response.ok) {
       const errorData = await response.text();
       console.error('[HubSpot] Create error:', errorData);
       return { success: false, error: errorData };
     }
-
     const data = await response.json();
-    // Production serverless returns { success, contactId } directly
-    const contactId = IS_DEV ? data.id : data.contactId;
-    return { success: true, contactId };
+    return { success: true, contactId: data.contactId };
   } catch (error) {
     console.error('Error creating HubSpot contact:', error);
     return { success: false, error: String(error) };
   }
 }
 
-/**
- * Update an existing contact in HubSpot
- */
 async function updateContact(
   contactId: string,
   properties: Record<string, string>
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    let response: Response;
-
-    if (IS_DEV) {
-      // Dev: use Vite proxy directly to HubSpot
-      response = await fetch(`${HUBSPOT_API_URL}/crm/v3/objects/contacts/${contactId}`, {
-        method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify({ properties }),
-      });
-    } else {
-      // Production: use serverless function
-      response = await fetch(SERVERLESS_ENDPOINT, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ action: 'update', contactId, properties }),
-      });
-    }
-
+    const response = await fetch(SERVERLESS_ENDPOINT, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ action: 'update', contactId, properties }),
+    });
     if (!response.ok) {
       const errorData = await response.text();
       console.error('HubSpot update error:', errorData);
       return { success: false, error: errorData };
     }
-
     return { success: true };
   } catch (error) {
     console.error('Error updating HubSpot contact:', error);
@@ -484,112 +387,42 @@ async function updateContact(
 }
 
 /**
- * Sync form submission to HubSpot
- * Creates a new contact or updates existing one (upsert)
+ * Sync form submission to HubSpot (family-rule upsert)
  */
 export async function syncToHubSpot(
   formData: FormData,
-  supabaseId?: string,
   talentId?: string
-): Promise<{ success: boolean; contactId?: string; error?: string }> {
+): Promise<{ success: boolean; contactId?: string; error?: string; isUpdate?: boolean }> {
   console.log('[HubSpot] ========== Starting sync ==========');
-  console.log('[HubSpot] IS_DEV:', IS_DEV);
-  console.log('[HubSpot] Form data received:', JSON.stringify(formData, null, 2));
-
-  // In dev mode, check for access token (proxy needs it)
-  // In production, serverless function has the token
-  if (IS_DEV) {
-    const accessToken = import.meta.env.VITE_HUBSPOT_ACCESS_TOKEN;
-    console.log('[HubSpot] Access token exists:', !!accessToken);
-    if (!accessToken) {
-      console.warn('[HubSpot] Access token not configured - skipping sync');
-      return { success: true };
-    }
-  }
-
   try {
-    console.log('[HubSpot] Transforming form data to HubSpot properties...');
-    const hubspotProperties = transformToHubSpotProperties(formData, supabaseId, talentId);
-    console.log('[HubSpot] Raw transformed properties:', JSON.stringify(hubspotProperties, null, 2));
-
+    const hubspotProperties = transformToHubSpotProperties(formData, talentId);
     const cleanedProperties = cleanProperties(hubspotProperties);
     console.log('[HubSpot] Cleaned properties count:', Object.keys(cleanedProperties).length);
-    console.log('[HubSpot] Cleaned properties:', JSON.stringify(cleanedProperties, null, 2));
 
-    // Search for existing contact by mobile number
     const mobileNumber = `${formData.mobileCountryCode} ${formData.mobile}`;
-    console.log('[HubSpot] Searching for existing contact with mobile:', mobileNumber);
+    const whatsappNumber = `${formData.whatsappCountryCode} ${formData.whatsapp}`;
 
-    const existingContactId = await searchContactByPhone(mobileNumber);
-    console.log('[HubSpot] Existing contact ID:', existingContactId);
+    const existingContactId = await findSamePersonByPhone(
+      mobileNumber,
+      whatsappNumber,
+      formData.firstName,
+      formData.dateOfBirth
+    );
 
     if (existingContactId) {
-      // Update existing contact
-      console.log('[HubSpot] Updating existing contact...');
-      const result = await updateContact(existingContactId, cleanedProperties);
-      console.log('[HubSpot] Update result:', JSON.stringify(result));
-      return { ...result, contactId: existingContactId };
-    } else {
-      // Create new contact
-      console.log('[HubSpot] Creating new contact...');
-      const result = await createContact(cleanedProperties);
-      console.log('[HubSpot] Create result:', JSON.stringify(result));
-      return result;
+      console.log('[HubSpot] Updating existing contact (same person re-applying)...');
+      // Never overwrite an existing talent_id when re-applying
+      const updateProps = { ...cleanedProperties };
+      delete updateProps.talent_id;
+      const result = await updateContact(existingContactId, updateProps);
+      return { ...result, contactId: existingContactId, isUpdate: true };
     }
+
+    console.log('[HubSpot] Creating new contact...');
+    const result = await createContact(cleanedProperties);
+    return { ...result, isUpdate: false };
   } catch (error) {
-    console.error('[HubSpot] ========== UNEXPECTED ERROR ==========');
-    console.error('[HubSpot] Error type:', typeof error);
-    console.error('[HubSpot] Error:', error);
-    console.error('[HubSpot] Error message:', error instanceof Error ? error.message : String(error));
-    console.error('[HubSpot] Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('[HubSpot] UNEXPECTED ERROR:', error);
     return { success: false, error: String(error) };
   }
-}
-
-/**
- * Batch sync multiple contacts to HubSpot (for Excel imports)
- */
-export async function batchSyncToHubSpot(
-  contacts: Array<Record<string, string>>,
-  accessToken: string
-): Promise<{ success: boolean; created: number; updated: number; errors: string[] }> {
-  const results = {
-    success: true,
-    created: 0,
-    updated: 0,
-    errors: [] as string[],
-  };
-
-  // HubSpot batch API has limits, process in chunks of 100
-  const chunkSize = 100;
-  for (let i = 0; i < contacts.length; i += chunkSize) {
-    const chunk = contacts.slice(i, i + chunkSize);
-
-    try {
-      const response = await fetch(`${HUBSPOT_API_URL}/crm/v3/objects/contacts/batch/create`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inputs: chunk.map(properties => ({ properties })),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        results.errors.push(`Batch ${i / chunkSize + 1}: ${errorData}`);
-        results.success = false;
-      } else {
-        const data = await response.json();
-        results.created += data.results?.length || 0;
-      }
-    } catch (error) {
-      results.errors.push(`Batch ${i / chunkSize + 1}: ${String(error)}`);
-      results.success = false;
-    }
-  }
-
-  return results;
 }

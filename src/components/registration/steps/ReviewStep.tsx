@@ -16,7 +16,7 @@ const REFERRAL_SOURCES = [
 
 interface ReviewStepProps {
   formData: {
-    gender: "male" | "female";
+    gender: "" | "male" | "female";
     firstName: string;
     middleName: string;
     lastName: string;
@@ -45,16 +45,18 @@ interface ReviewStepProps {
     hasTattoos: boolean;
     hasPiercings: boolean;
     talents: string[];
+    danceStyles: string[];
+    musicalInstruments: string[];
     sports: string[];
     experience: string;
     interestedInExtra: string;
     hasCar: string;
     hasLicense: string;
-    isEmployed: string;
     canTravel: string;
     hasPassport: string;
     hasMultiplePassports: string;
     passports?: string[];
+    visasHeld?: string[];
     howDidYouHear: string;
     howDidYouHearOther: string;
   };
@@ -161,6 +163,8 @@ const ReviewStep = ({ formData, onSubmit, onChange, isSubmitting }: ReviewStepPr
 
         <Section title="Talents & Experience">
           <Field label="Talents" value={formData.talents?.join(", ") || "-"} />
+          <Field label="Dance Styles" value={formData.danceStyles?.join(", ") || "-"} />
+          <Field label="Instruments" value={formData.musicalInstruments?.join(", ") || "-"} />
           <Field label="Sports" value={formData.sports?.join(", ") || "-"} />
           {formData.experience && (
             <div className="text-sm">
@@ -175,12 +179,14 @@ const ReviewStep = ({ formData, onSubmit, onChange, isSubmitting }: ReviewStepPr
           <Field label="Interested in Extra Work" value={formData.interestedInExtra === "yes" ? "Yes" : formData.interestedInExtra === "no" ? "No" : "-"} />
           <Field label="Has Car" value={formData.hasCar === "yes" ? "Yes" : formData.hasCar === "no" ? "No" : "-"} />
           <Field label="Driving License" value={formData.hasLicense === "yes" ? "Yes" : formData.hasLicense === "no" ? "No" : "-"} />
-          <Field label="Employed" value={formData.isEmployed === "yes" ? "Yes" : formData.isEmployed === "no" ? "No" : "-"} />
           <Field label="Willing to Travel" value={formData.canTravel === "yes" ? "Yes" : formData.canTravel === "no" ? "No" : "-"} />
           <Field label="Valid Passport" value={formData.hasPassport === "yes" ? "Yes" : formData.hasPassport === "no" ? "No" : "-"} />
           <Field label="Multiple Passports" value={formData.hasMultiplePassports === "yes" ? "Yes" : formData.hasMultiplePassports === "no" ? "No" : "-"} />
           {formData.hasMultiplePassports === "yes" && formData.passports && formData.passports.length > 0 && (
             <Field label="Passports" value={formData.passports.join(", ")} />
+          )}
+          {formData.visasHeld && formData.visasHeld.length > 0 && (
+            <Field label="Visas" value={formData.visasHeld.join(", ")} />
           )}
         </Section>
 

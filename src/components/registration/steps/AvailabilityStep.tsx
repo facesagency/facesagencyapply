@@ -1,21 +1,24 @@
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X } from "lucide-react";
-import { nationalities } from "@/data/lebanese-locations";
+import { nationalities, visaOptions } from "@/data/lebanese-locations";
+import { Input } from "@/components/ui/input";
+import InfoNote from "../InfoNote";
 
 interface AvailabilityStepProps {
   data: {
     interestedInExtra: string;
     hasCar: string;
     hasLicense: string;
-    isEmployed: string;
     canTravel: string;
     hasPassport: string;
     hasMultiplePassports: string;
     passports: string[];
     hasLookAlikeTwin: string;
+    visasHeld: string[];
+    visaExpiries: Record<string, string>;
   };
-  onChange: (field: string, value: string | boolean | string[]) => void;
+  onChange: (field: string, value: string | boolean | string[] | Record<string, string>) => void;
 }
 
 const AvailabilityStep = ({ data, onChange }: AvailabilityStepProps) => {
@@ -163,6 +166,67 @@ const AvailabilityStep = ({ data, onChange }: AvailabilityStepProps) => {
             )}
           </div>
         )}
+
+        {/* Visas held */}
+        <div className="space-y-3 pt-2">
+          <Label>
+            Do you hold any valid visas?
+            <InfoNote text="Select visas currently valid in your passport, with expiry dates. Helps us match you to shoots abroad quickly." />
+          </Label>
+          <Select
+            value=""
+            onValueChange={(value) => {
+              if (!data.visasHeld.includes(value)) {
+                onChange("visasHeld", [...data.visasHeld, value]);
+              }
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Add a visa (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              {visaOptions.map((visa) => (
+                <SelectItem key={visa} value={visa} disabled={data.visasHeld.includes(visa)}>
+                  {visa}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {data.visasHeld.length > 0 && (
+            <div className="space-y-2 mt-2">
+              {data.visasHeld.map((visa) => (
+                <div
+                  key={visa}
+                  className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-2"
+                >
+                  <span className="text-sm font-medium flex-1">{visa}</span>
+                  <Input
+                    type="date"
+                    aria-label={`${visa} expiry date`}
+                    value={data.visaExpiries[visa] || ""}
+                    onChange={(e) =>
+                      onChange("visaExpiries", { ...data.visaExpiries, [visa]: e.target.value })
+                    }
+                    className="h-9 w-40 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newExpiries = { ...data.visaExpiries };
+                      delete newExpiries[visa];
+                      onChange("visasHeld", data.visasHeld.filter((v) => v !== visa));
+                      onChange("visaExpiries", newExpiries);
+                    }}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">Expiry date next to each visa</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

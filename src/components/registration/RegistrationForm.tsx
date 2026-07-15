@@ -14,75 +14,12 @@ import AvailabilityStep from "./steps/AvailabilityStep";
 import ReviewStep from "./steps/ReviewStep";
 import { mainInfoSchema, contactSchema, addressSchema, languagesSchema, appearanceSchema, measurementsSchema } from "@/lib/formValidation";
 import { submitApplication } from "@/lib/submitApplication";
-interface FormData {
-  gender: "male" | "female";
-  firstName: string;
-  middleName: string;
-  lastName: string;
-  dateOfBirth: string;
-  nationality: string;
-  email: string;
-  mobile: string;
-  mobileCountryCode: string;
-  whatsapp: string;
-  whatsappCountryCode: string;
-  otherNumber: string;
-  otherNumberCountryCode: string;
-  otherNumberRelationship: string;
-  otherNumberPersonName: string;
-  instagram: string;
-  hasWhishAccount: string;
-  whishNumber: string;
-  whishCountryCode: string;
-  governorate: string;
-  district: string;
-  area: string;
-  languages: string[];
-  languageLevels: Record<string, number>;
-  customLanguage: string;
-  height: string;
-  weight: string;
-  pantSize: string;
-  jacketSize: string;
-  shoeSize: string;
-  bust: string;
-  waist: string;
-  hips: string;
-  eyeColor: string;
-  hairColor: string;
-  hairType: string;
-  hairLength: string;
-  skinTone: string;
-  hasTattoos: boolean;
-  hasPiercings: boolean;
-  customEyeColor: string;
-  customHairColor: string;
-  shoulders: string;
-  talents: string[];
-  talentLevels: Record<string, number>;
-  sports: string[];
-  sportLevels: Record<string, number>;
-  modeling: string[];
-  customTalent: string;
-  customSport: string;
-  customModeling: string;
-  experience: string;
-  interestedInExtra: string;
-  hasCar: string;
-  hasLicense: string;
-  isEmployed: string;
-  canTravel: string;
-  hasPassport: string;
-  hasMultiplePassports: string;
-  passports: string[];
-  comfortableWithSwimwear: boolean | null;
-  cameraConfidence: number;
-  hasLookAlikeTwin: string;
-  howDidYouHear: string;
-  howDidYouHearOther: string;
-}
+import type { FormData } from "@/lib/hubspot";
+
+const DRAFT_KEY = "faces-application-draft-v2";
+
 const initialFormData: FormData = {
-  gender: "female",
+  gender: "",
   firstName: "",
   middleName: "",
   lastName: "",
@@ -98,13 +35,11 @@ const initialFormData: FormData = {
   otherNumberRelationship: "",
   otherNumberPersonName: "",
   instagram: "",
-  hasWhishAccount: "",
-  whishNumber: "",
-  whishCountryCode: "+961",
   governorate: "",
   district: "",
   area: "",
   languages: [],
+  otherLanguages: [],
   languageLevels: {},
   customLanguage: "",
   height: "",
@@ -126,158 +61,162 @@ const initialFormData: FormData = {
   customHairColor: "",
   shoulders: "",
   talents: [],
-  talentLevels: {},
-  sports: [],
-  sportLevels: {},
-  modeling: [],
-  customTalent: "",
-  customSport: "",
-  customModeling: "",
+  danceStyles: [],
+  musicalInstruments: [],
+  instrumentLevels: {},
   experience: "",
+  cameraConfidence: 0,
   interestedInExtra: "",
+  willingShaveBeard: "",
+  aiProjectsInterest: "",
+  alcoholAdsOk: "",
+  sports: [],
   hasCar: "",
   hasLicense: "",
-  isEmployed: "",
   canTravel: "",
   hasPassport: "",
   hasMultiplePassports: "",
   passports: [],
-  comfortableWithSwimwear: null,
-  cameraConfidence: 0,
+  visasHeld: [],
+  visaExpiries: {},
   hasLookAlikeTwin: "",
   howDidYouHear: "",
   howDidYouHearOther: ""
 };
+
+/** Load a saved draft from this device (survives refresh / interruption) */
+const loadDraft = (): { formData: FormData; step: number } | null => {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || !parsed.formData) return null;
+    return {
+      formData: { ...initialFormData, ...parsed.formData },
+      step: typeof parsed.step === "number" ? parsed.step : 0,
+    };
+  } catch {
+    return null;
+  }
+};
+
 const RegistrationForm = () => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const draft = loadDraft();
+  const [currentStep, setCurrentStep] = useState(draft ? draft.step : 0);
+  const [formData, setFormData] = useState<FormData>(draft ? draft.formData : initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
   const totalSteps = 9;
-  const updateFormData = (field: string, value: string | string[] | boolean | number | File | null | Record<string, number>) => {
+
+  // Draft auto-save: the applicant never loses progress on refresh or interruption
+  useEffect(() => {
+    if (isSubmitted) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ formData, step: currentStep }));
+    } catch {
+      // Storage unavailable (private mode etc.) — form still works, just without drafts
+    }
+  }, [formData, currentStep, isSubmitted]);
+
+  const updateFormData = (field: string, value: string | string[] | boolean | number | File | null | Record<string, number> | Record<string, string>) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
+
   const handleProceed = () => {
     setCurrentStep(1);
   };
+
+  const showValidationError = (message: string) => {
+    toast({
+      title: "Validation Error",
+      description: message,
+      variant: "destructive"
+    });
+  };
+
   const validateCurrentStep = (): boolean => {
     switch (currentStep) {
-      case 1:
-        {
-          const result = mainInfoSchema.safeParse(formData);
-          if (!result.success) {
-            const firstError = result.error.errors[0];
-            toast({
-              title: "Validation Error",
-              description: firstError.message,
-              variant: "destructive"
-            });
-            return false;
-          }
-          break;
+      case 1: {
+        const result = mainInfoSchema.safeParse(formData);
+        if (!result.success) {
+          showValidationError(result.error.errors[0].message);
+          return false;
         }
-      case 2:
-        {
-          const result = contactSchema.safeParse(formData);
-          if (!result.success) {
-            const firstError = result.error.errors[0];
-            toast({
-              title: "Validation Error",
-              description: firstError.message,
-              variant: "destructive"
-            });
-            return false;
-          }
-          break;
+        break;
+      }
+      case 2: {
+        const result = contactSchema.safeParse(formData);
+        if (!result.success) {
+          showValidationError(result.error.errors[0].message);
+          return false;
         }
-      case 3:
-        {
-          // Validate both address and languages
-          const addressResult = addressSchema.safeParse(formData);
-          if (!addressResult.success) {
-            const firstError = addressResult.error.errors[0];
-            toast({
-              title: "Validation Error",
-              description: firstError.message,
-              variant: "destructive"
-            });
-            return false;
-          }
-          const langResult = languagesSchema.safeParse(formData);
-          if (!langResult.success) {
-            const firstError = langResult.error.errors[0];
-            toast({
-              title: "Validation Error",
-              description: firstError.message,
-              variant: "destructive"
-            });
-            return false;
-          }
-          break;
+        break;
+      }
+      case 3: {
+        const addressResult = addressSchema.safeParse(formData);
+        if (!addressResult.success) {
+          showValidationError(addressResult.error.errors[0].message);
+          return false;
         }
-      case 4:
-        {
-          const result = appearanceSchema.safeParse(formData);
-          if (!result.success) {
-            const firstError = result.error.errors[0];
-            toast({
-              title: "Validation Error",
-              description: firstError.message,
-              variant: "destructive"
-            });
-            return false;
-          }
-          break;
+        const langResult = languagesSchema.safeParse(formData);
+        if (!langResult.success) {
+          showValidationError(langResult.error.errors[0].message);
+          return false;
         }
-      case 5:
-        {
-          const result = measurementsSchema.safeParse(formData);
-          if (!result.success) {
-            const firstError = result.error.errors[0];
-            toast({
-              title: "Validation Error",
-              description: firstError.message,
-              variant: "destructive"
-            });
-            return false;
-          }
-          break;
+        break;
+      }
+      case 4: {
+        const result = appearanceSchema.safeParse(formData);
+        if (!result.success) {
+          showValidationError(result.error.errors[0].message);
+          return false;
         }
+        break;
+      }
+      case 5: {
+        const result = measurementsSchema.safeParse(formData);
+        if (!result.success) {
+          showValidationError(result.error.errors[0].message);
+          return false;
+        }
+        break;
+      }
     }
     return true;
   };
+
   const handleNext = (skipValidation = false) => {
     if (skipValidation || validateCurrentStep()) {
       setCurrentStep(prev => Math.min(prev + 1, totalSteps - 1));
     }
   };
+
   const handleBack = () => {
     setCurrentStep(prev => Math.max(prev - 1, 0));
   };
+
   const handleSubmit = async () => {
     console.log("[RegistrationForm] ========== Submit clicked ==========");
-    console.log("[RegistrationForm] formData:", JSON.stringify(formData, null, 2));
     setIsSubmitting(true);
     try {
-      console.log("[RegistrationForm] Calling submitApplication...");
       const result = await submitApplication(formData);
-      console.log("[RegistrationForm] submitApplication returned:", JSON.stringify(result));
 
       if (result.success) {
-        console.log("[RegistrationForm] Success! Setting isSubmitted to true.");
         setIsSubmitted(true);
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+        } catch {
+          // ignore
+        }
         toast({
           title: "Application Submitted!",
           description: "Thank you for registering with Faces Agency. We'll be in touch soon!"
         });
       } else {
-        console.log("[RegistrationForm] Submission failed with error:", result.error);
         toast({
           title: "Submission Failed",
           description: result.error || "There was an error submitting your application. Please try again.",
@@ -285,19 +224,17 @@ const RegistrationForm = () => {
         });
       }
     } catch (error) {
-      console.error("[RegistrationForm] ========== CATCH ERROR ==========");
       console.error("[RegistrationForm] Error:", error);
-      console.error("[RegistrationForm] Error type:", typeof error);
       toast({
         title: "Submission Failed",
         description: "There was an error submitting your application. Please try again.",
         variant: "destructive"
       });
     } finally {
-      console.log("[RegistrationForm] Finally block - setting isSubmitting to false");
       setIsSubmitting(false);
     }
   };
+
   // Letter-by-letter animation for thank you page
   const [visibleLetters, setVisibleLetters] = useState(0);
   const facesLetters = [
@@ -308,7 +245,6 @@ const RegistrationForm = () => {
     { char: "s", isRed: true },
   ];
 
-  // Animate letters when submitted
   useEffect(() => {
     if (isSubmitted) {
       setVisibleLetters(0);
@@ -320,7 +256,7 @@ const RegistrationForm = () => {
           clearInterval(interval);
           return prev;
         });
-      }, 250); // Medium pace - 250ms per letter
+      }, 250);
       return () => clearInterval(interval);
     }
   }, [isSubmitted]);
@@ -332,8 +268,7 @@ const RegistrationForm = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        
-        {/* Animated FACES Logo */}
+
         <div className="flex items-center justify-center gap-0 mb-6">
           {facesLetters.map((letter, index) => (
             <span
@@ -364,6 +299,18 @@ const RegistrationForm = () => {
         </p>
       </div>;
   }
+
+  // Encouraging progress line under the bar
+  const encouragement = (() => {
+    const step = currentStep;
+    const last = totalSteps - 1;
+    if (step <= 2) return `Step ${step} of ${last}`;
+    if (step <= 4) return `Step ${step} of ${last} — almost halfway!`;
+    if (step <= 6) return `Step ${step} of ${last} — you're doing great!`;
+    if (step === 7) return `Step ${step} of ${last} — almost there!`;
+    return `Final step — review and submit!`;
+  })();
+
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -377,7 +324,7 @@ const RegistrationForm = () => {
       case 4:
         return <AppearanceStep data={formData} onChange={updateFormData} />;
       case 5:
-        return <MeasurementsStep data={formData} gender={formData.gender} onChange={updateFormData} />;
+        return <MeasurementsStep data={formData} gender={formData.gender} dateOfBirth={formData.dateOfBirth} onChange={updateFormData} />;
       case 6:
         return <TalentsStep data={formData} onChange={updateFormData} />;
       case 7:
@@ -388,11 +335,13 @@ const RegistrationForm = () => {
         return null;
     }
   };
+
   return <div className="min-h-screen bg-background flex flex-col">
       {/* Header with Progress */}
       {currentStep > 0 && <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 md:px-6 py-4">
           <div className="max-w-md md:max-w-lg lg:max-w-xl mx-auto">
             <FormProgress currentStep={currentStep} totalSteps={totalSteps - 1} />
+            <p className="text-xs text-muted-foreground text-center mt-1.5">{encouragement}</p>
           </div>
         </div>}
 

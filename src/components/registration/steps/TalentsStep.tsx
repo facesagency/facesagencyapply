@@ -1,118 +1,78 @@
-import { useState } from "react";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { talents, sports, modelingTypes } from "@/data/lebanese-locations";
-import { Check, ChevronDown, X, Search, Star } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { talents, sports, danceStyles, musicalInstruments } from "@/data/lebanese-locations";
+import { X, Star } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import InfoNote from "../InfoNote";
 
 interface TalentsStepProps {
   data: {
     talents: string[];
-    talentLevels?: Record<string, number>;
+    danceStyles: string[];
+    musicalInstruments: string[];
+    instrumentLevels: Record<string, number>;
     sports: string[];
-    sportLevels?: Record<string, number>;
-    modeling: string[];
     experience: string;
-    customTalent?: string;
-    customSport?: string;
-    customModeling?: string;
-    comfortableWithSwimwear: boolean | null;
     interestedInExtra: string;
     cameraConfidence: number;
+    willingShaveBeard: string;
+    aiProjectsInterest: string;
+    alcoholAdsOk: string;
+    gender: "" | "male" | "female";
+    dateOfBirth: string;
   };
-  onChange: (field: string, value: string | string[] | boolean | number | Record<string, number>) => void;
+  onChange: (field: string, value: string | string[] | number | Record<string, number>) => void;
 }
 
+const calculateAge = (dateOfBirth: string): number | null => {
+  if (!dateOfBirth) return null;
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  if (isNaN(birthDate.getTime())) return null;
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
+};
+
+const maxItems = 5;
+
 const TalentsStep = ({ data, onChange }: TalentsStepProps) => {
-  const [customModeling, setCustomModeling] = useState(data.customModeling || "");
-  const [isModelingOpen, setIsModelingOpen] = useState(false);
-  const [modelingSearchQuery, setModelingSearchQuery] = useState("");
+  const age = calculateAge(data.dateOfBirth);
+  const isMale = data.gender === "male";
+  const showBeard = isMale && age !== null && age >= 13;
+  const showAlcohol = age !== null && age >= 18;
 
-  const talentLevels = data.talentLevels || {};
-  const sportLevels = data.sportLevels || {};
+  const instrumentLevels = data.instrumentLevels || {};
   const selectedTalents = data.talents || [];
+  const selectedDance = data.danceStyles || [];
+  const selectedInstruments = data.musicalInstruments || [];
   const selectedSports = data.sports || [];
-  const selectedModeling = data.modeling || [];
 
-  const maxItems = 5;
-
-  // Available talents/sports for dropdown (excluding already selected)
-  const availableTalents = talents.filter(t => !selectedTalents.includes(t) && t !== "Other");
-  const availableSports = sports.filter(s => !selectedSports.includes(s) && s !== "Other");
-
-  const filteredModeling = modelingSearchQuery.trim() 
-    ? modelingTypes.filter((type) => type.toLowerCase().includes(modelingSearchQuery.toLowerCase()))
-    : modelingTypes;
-
-  const handleAddTalent = (talent: string) => {
-    if (selectedTalents.length < maxItems && !selectedTalents.includes(talent)) {
-      const newTalents = [...selectedTalents, talent];
-      const newLevels = { ...talentLevels, [talent]: 3 };
-      onChange("talents", newTalents);
-      onChange("talentLevels", newLevels);
+  // Generic add/remove for simple multi-select lists (no ratings)
+  const addTo = (field: string, list: string[], value: string) => {
+    if (list.length < maxItems && !list.includes(value)) {
+      onChange(field, [...list, value]);
     }
   };
-
-  const handleRemoveTalent = (talent: string) => {
-    const newTalents = selectedTalents.filter(t => t !== talent);
-    const newLevels = { ...talentLevels };
-    delete newLevels[talent];
-    onChange("talents", newTalents);
-    onChange("talentLevels", newLevels);
+  const removeFrom = (field: string, list: string[], value: string) => {
+    onChange(field, list.filter(v => v !== value));
   };
 
-  const handleTalentLevelChange = (talent: string, level: number) => {
-    const newLevels = { ...talentLevels, [talent]: level };
-    onChange("talentLevels", newLevels);
-  };
-
-  const handleAddSport = (sport: string) => {
-    if (selectedSports.length < maxItems && !selectedSports.includes(sport)) {
-      const newSports = [...selectedSports, sport];
-      const newLevels = { ...sportLevels, [sport]: 3 };
-      onChange("sports", newSports);
-      onChange("sportLevels", newLevels);
+  const handleAddInstrument = (instrument: string) => {
+    if (selectedInstruments.length < maxItems && !selectedInstruments.includes(instrument)) {
+      onChange("musicalInstruments", [...selectedInstruments, instrument]);
+      onChange("instrumentLevels", { ...instrumentLevels, [instrument]: 3 });
     }
   };
-
-  const handleRemoveSport = (sport: string) => {
-    const newSports = selectedSports.filter(s => s !== sport);
-    const newLevels = { ...sportLevels };
-    delete newLevels[sport];
-    onChange("sports", newSports);
-    onChange("sportLevels", newLevels);
+  const handleRemoveInstrument = (instrument: string) => {
+    const newLevels = { ...instrumentLevels };
+    delete newLevels[instrument];
+    onChange("musicalInstruments", selectedInstruments.filter(i => i !== instrument));
+    onChange("instrumentLevels", newLevels);
   };
-
-  const handleSportLevelChange = (sport: string, level: number) => {
-    const newLevels = { ...sportLevels, [sport]: level };
-    onChange("sportLevels", newLevels);
+  const handleInstrumentLevelChange = (instrument: string, level: number) => {
+    onChange("instrumentLevels", { ...instrumentLevels, [instrument]: level });
   };
-
-  const handleModelingToggle = (type: string) => {
-    const currentModeling = data.modeling || [];
-    if (currentModeling.includes(type)) {
-      onChange("modeling", currentModeling.filter((m) => m !== type));
-    } else if (currentModeling.length < maxItems) {
-      onChange("modeling", [...currentModeling, type]);
-    }
-  };
-
-  const handleRemoveModeling = (type: string) => {
-    const currentModeling = data.modeling || [];
-    onChange("modeling", currentModeling.filter((m) => m !== type));
-    if (type === "Other") {
-      setCustomModeling("");
-      onChange("customModeling", "");
-    }
-  };
-
-  const handleCustomModelingChange = (value: string) => {
-    setCustomModeling(value);
-    onChange("customModeling", value);
-  };
-
-  const hasModelingOtherSelected = selectedModeling.includes("Other");
 
   const StarRating = ({ item, level, onLevelChange }: { item: string; level: number; onLevelChange: (item: string, level: number) => void }) => (
     <div className="flex items-center gap-0.5">
@@ -120,19 +80,10 @@ const TalentsStep = ({ data, onChange }: TalentsStepProps) => {
         <button
           key={star}
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onLevelChange(item, star);
-          }}
+          onClick={(e) => { e.stopPropagation(); onLevelChange(item, star); }}
           className="p-0"
         >
-          <Star
-            className={`w-4 h-4 transition-colors ${
-              star <= level
-                ? "fill-primary text-primary"
-                : "fill-none text-muted-foreground"
-            }`}
-          />
+          <Star className={`w-4 h-4 transition-colors ${star <= level ? "fill-primary text-primary" : "fill-none text-muted-foreground"}`} />
         </button>
       ))}
       <span className="text-[10px] text-muted-foreground ml-1.5">
@@ -145,46 +96,97 @@ const TalentsStep = ({ data, onChange }: TalentsStepProps) => {
     </div>
   );
 
+  /** Multi-select picker: dropdown + removable chips, no ratings */
+  const ChipPicker = ({
+    label,
+    hint,
+    field,
+    options,
+    selected,
+    note,
+  }: {
+    label: string;
+    hint?: string;
+    field: string;
+    options: readonly string[];
+    selected: string[];
+    note?: string;
+  }) => {
+    const available = options.filter(o => !selected.includes(o));
+    return (
+      <div className="space-y-3">
+        <Label>
+          {label}
+          {note && <InfoNote text={note} />}
+        </Label>
+        {hint && <p className="text-muted-foreground text-sm">{hint}</p>}
+        {selected.length < maxItems && (
+          <Select onValueChange={(v) => addTo(field, selected, v)} value="">
+            <SelectTrigger className="h-12">
+              <SelectValue placeholder={`Select (${maxItems - selected.length} left)`} />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              {available.map((option) => (
+                <SelectItem key={option} value={option}>{option}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {selected.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {selected.map((item) => (
+              <div key={item} className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-2">
+                <span className="text-sm font-medium">{item}</span>
+                <button
+                  type="button"
+                  onClick={() => removeFrom(field, selected, item)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /** Yes / No / (optional third) poll */
   const PollQuestion = ({
     label,
     field,
     value,
+    note,
+    third,
   }: {
     label: string;
     field: string;
     value: string;
+    note?: string;
+    third?: { key: string; label: string };
   }) => (
     <div className="space-y-3">
-      <Label>{label}</Label>
-      <div className="grid grid-cols-2 gap-4">
-        <div
-          onClick={() => onChange(field, "yes")}
-          className={`flex items-center justify-center p-5 rounded-xl border-2 cursor-pointer transition-all ${
-            value === "yes"
-              ? "border-primary bg-primary/10 shadow-md"
-              : "border-border hover:border-primary/50 hover:bg-muted/50"
-          }`}
-        >
-          <span className={`text-lg font-semibold ${
-            value === "yes" ? "text-primary" : "text-foreground"
-          }`}>
-            Yes
-          </span>
-        </div>
-        <div
-          onClick={() => onChange(field, "no")}
-          className={`flex items-center justify-center p-5 rounded-xl border-2 cursor-pointer transition-all ${
-            value === "no"
-              ? "border-primary bg-primary/10 shadow-md"
-              : "border-border hover:border-primary/50 hover:bg-muted/50"
-          }`}
-        >
-          <span className={`text-lg font-semibold ${
-            value === "no" ? "text-primary" : "text-foreground"
-          }`}>
-            No
-          </span>
-        </div>
+      <Label>
+        {label}
+        {note && <InfoNote text={note} />}
+      </Label>
+      <div className={`grid ${third ? "grid-cols-3" : "grid-cols-2"} gap-3`}>
+        {[{ key: "yes", label: "Yes" }, { key: "no", label: "No" }, ...(third ? [third] : [])].map((opt) => (
+          <div
+            key={opt.key}
+            onClick={() => onChange(field, opt.key)}
+            className={`flex items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all text-center ${
+              value === opt.key
+                ? "border-primary bg-primary/10 shadow-md"
+                : "border-border hover:border-primary/50 hover:bg-muted/50"
+            }`}
+          >
+            <span className={`text-base font-semibold ${value === opt.key ? "text-primary" : "text-foreground"}`}>
+              {opt.label}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -199,48 +201,58 @@ const TalentsStep = ({ data, onChange }: TalentsStepProps) => {
       </div>
 
       <div className="space-y-6">
-        {/* Talents Section */}
-        <div className="space-y-3">
-          <Label>Talents & Skills</Label>
-          <p className="text-muted-foreground text-sm">Select up to 5 talents and rate your proficiency</p>
-          
-          {selectedTalents.length < maxItems && (
-            <Select onValueChange={handleAddTalent} value="">
+        <ChipPicker
+          label="Talents & Skills"
+          hint="Select up to 5 talents"
+          field="talents"
+          options={talents}
+          selected={selectedTalents}
+        />
+
+        <div className="pt-6 border-t border-border">
+          <ChipPicker
+            label="Dance Styles"
+            hint="Do you dance? Select up to 5 styles"
+            field="danceStyles"
+            options={danceStyles}
+            selected={selectedDance}
+          />
+        </div>
+
+        {/* Musical Instruments — with proficiency ratings */}
+        <div className="space-y-3 pt-6 border-t border-border">
+          <Label>Musical Instruments</Label>
+          <p className="text-muted-foreground text-sm">Do you play? Select up to 5 instruments and rate your level</p>
+          {selectedInstruments.length < maxItems && (
+            <Select onValueChange={handleAddInstrument} value="">
               <SelectTrigger className="h-12">
-                <SelectValue placeholder={`Select talent (${maxItems - selectedTalents.length} left)`} />
+                <SelectValue placeholder={`Select instrument (${maxItems - selectedInstruments.length} left)`} />
               </SelectTrigger>
               <SelectContent className="max-h-60">
-                {availableTalents.map((talent) => (
-                  <SelectItem key={talent} value={talent}>
-                    {talent}
-                  </SelectItem>
+                {musicalInstruments.filter(i => !selectedInstruments.includes(i)).map((instrument) => (
+                  <SelectItem key={instrument} value={instrument}>{instrument}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           )}
-
-          {/* Selected Talents with Star Ratings */}
-          {selectedTalents.length > 0 && (
+          {selectedInstruments.length > 0 && (
             <div className="grid grid-cols-1 gap-3 mt-3">
-              {selectedTalents.map((talent) => (
-                <div
-                  key={talent}
-                  className="flex flex-col p-3 rounded-lg border border-primary bg-primary/10"
-                >
+              {selectedInstruments.map((instrument) => (
+                <div key={instrument} className="flex flex-col p-3 rounded-lg border border-primary bg-primary/10">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">{talent}</span>
+                    <span className="text-sm font-medium">{instrument}</span>
                     <button
                       type="button"
-                      onClick={() => handleRemoveTalent(talent)}
+                      onClick={() => handleRemoveInstrument(instrument)}
                       className="p-0.5 hover:bg-destructive/20 rounded"
                     >
                       <X className="w-4 h-4 text-destructive" />
                     </button>
                   </div>
-                  <StarRating 
-                    item={talent} 
-                    level={talentLevels[talent] || 3}
-                    onLevelChange={handleTalentLevelChange}
+                  <StarRating
+                    item={instrument}
+                    level={instrumentLevels[instrument] || 3}
+                    onLevelChange={handleInstrumentLevelChange}
                   />
                 </div>
               ))}
@@ -248,53 +260,14 @@ const TalentsStep = ({ data, onChange }: TalentsStepProps) => {
           )}
         </div>
 
-        {/* Sports Section */}
-        <div className="space-y-3 pt-6 border-t border-border">
-          <Label>Sports & Fitness</Label>
-          <p className="text-muted-foreground text-sm">Select up to 5 sports and rate your proficiency</p>
-          
-          {selectedSports.length < maxItems && (
-            <Select onValueChange={handleAddSport} value="">
-              <SelectTrigger className="h-12">
-                <SelectValue placeholder={`Select sport (${maxItems - selectedSports.length} left)`} />
-              </SelectTrigger>
-              <SelectContent className="max-h-60">
-                {availableSports.map((sport) => (
-                  <SelectItem key={sport} value={sport}>
-                    {sport}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Selected Sports with Star Ratings */}
-          {selectedSports.length > 0 && (
-            <div className="grid grid-cols-1 gap-3 mt-3">
-              {selectedSports.map((sport) => (
-                <div
-                  key={sport}
-                  className="flex flex-col p-3 rounded-lg border border-primary bg-primary/10"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">{sport}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSport(sport)}
-                      className="p-0.5 hover:bg-destructive/20 rounded"
-                    >
-                      <X className="w-4 h-4 text-destructive" />
-                    </button>
-                  </div>
-                  <StarRating 
-                    item={sport} 
-                    level={sportLevels[sport] || 3}
-                    onLevelChange={handleSportLevelChange}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="pt-6 border-t border-border">
+          <ChipPicker
+            label="Sports & Fitness"
+            hint="Select up to 5 sports"
+            field="sports"
+            options={sports}
+            selected={selectedSports}
+          />
         </div>
 
         <PollQuestion
@@ -308,22 +281,14 @@ const TalentsStep = ({ data, onChange }: TalentsStepProps) => {
 
         {/* Camera Confidence Rating */}
         <div className="space-y-3">
-          <Label>How would you rate your confidence in speaking in front of the camera?</Label>
+          <Label>
+            How would you rate your confidence in speaking in front of the camera?
+            <InfoNote text="How comfortable do you feel being filmed or photographed? Be honest — beginners are welcome." />
+          </Label>
           <div className="flex items-center justify-center gap-1">
             {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                onClick={() => onChange("cameraConfidence", star)}
-                className="p-1"
-              >
-                <Star
-                  className={`w-8 h-8 transition-colors ${
-                    star <= (data.cameraConfidence || 0)
-                      ? "fill-primary text-primary"
-                      : "fill-none text-muted-foreground"
-                  }`}
-                />
+              <button key={star} type="button" onClick={() => onChange("cameraConfidence", star)} className="p-1">
+                <Star className={`w-8 h-8 transition-colors ${star <= (data.cameraConfidence || 0) ? "fill-primary text-primary" : "fill-none text-muted-foreground"}`} />
               </button>
             ))}
           </div>
@@ -333,155 +298,42 @@ const TalentsStep = ({ data, onChange }: TalentsStepProps) => {
           </div>
         </div>
 
-        {/* Modeling dropdown */}
-        <div className="space-y-2">
-          <Label>What kind of modeling would you be interested in or have experience in?</Label>
-          
-          {selectedModeling.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {selectedModeling.map((type) => (
-                <Badge
-                  key={type}
-                  variant="secondary"
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary/10 text-primary border border-primary/20"
-                >
-                  {type}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveModeling(type)}
-                    className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsModelingOpen(!isModelingOpen)}
-              className="w-full flex items-center justify-between p-4 rounded-lg border border-border bg-background hover:border-primary/50 transition-colors text-left"
-            >
-              <span className="text-muted-foreground">
-                {selectedModeling.length === 0
-                  ? "Select modeling types (max 5)..."
-                  : `${selectedModeling.length}/${maxItems} selected`}
-              </span>
-              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isModelingOpen ? "rotate-180" : ""}`} />
-            </button>
-
-            {isModelingOpen && (
-              <div className="absolute z-50 w-full mt-2 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
-                <div className="p-3 border-b border-border">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search modeling types..."
-                      value={modelingSearchQuery}
-                      onChange={(e) => setModelingSearchQuery(e.target.value)}
-                      className="pl-9"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                <div className="max-h-64 overflow-y-auto">
-                  {filteredModeling.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground">
-                      No modeling types found
-                    </div>
-                  ) : (
-                    filteredModeling.map((type) => {
-                      const isSelected = selectedModeling.includes(type);
-                      const isDisabled = !isSelected && selectedModeling.length >= maxItems;
-                      return (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => !isDisabled && handleModelingToggle(type)}
-                          disabled={isDisabled}
-                          className={`w-full flex items-center justify-between px-4 py-3 transition-colors text-left ${
-                            isSelected ? "bg-primary/5 hover:bg-primary/10" : ""
-                          } ${isDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/50"}`}
-                        >
-                          <span className={isSelected ? "text-primary font-medium" : "text-foreground"}>
-                            {type}
-                          </span>
-                          {isSelected && <Check className="h-4 w-4 text-primary" />}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {hasModelingOtherSelected && (
-            <Input
-              placeholder="Specify your other modeling type..."
-              value={customModeling}
-              onChange={(e) => handleCustomModelingChange(e.target.value)}
-              className="mt-3"
-            />
-          )}
-        </div>
-
-        {/* Swimwear comfort question */}
-        <div className="space-y-3">
-          <Label>Are you comfortable modeling swimwear?</Label>
-          <div className="grid grid-cols-2 gap-4">
-            <div
-              onClick={() => onChange("comfortableWithSwimwear", true)}
-              className={`flex items-center justify-center p-5 rounded-xl border-2 cursor-pointer transition-all ${
-                data.comfortableWithSwimwear === true
-                  ? "border-primary bg-primary/10 shadow-md"
-                  : "border-border hover:border-primary/50 hover:bg-muted/50"
-              }`}
-            >
-              <span className={`text-lg font-semibold ${
-                data.comfortableWithSwimwear === true ? "text-primary" : "text-foreground"
-              }`}>
-                Yes
-              </span>
-            </div>
-            <div
-              onClick={() => onChange("comfortableWithSwimwear", false)}
-              className={`flex items-center justify-center p-5 rounded-xl border-2 cursor-pointer transition-all ${
-                data.comfortableWithSwimwear === false
-                  ? "border-primary bg-primary/10 shadow-md"
-                  : "border-border hover:border-primary/50 hover:bg-muted/50"
-              }`}
-            >
-              <span className={`text-lg font-semibold ${
-                data.comfortableWithSwimwear === false ? "text-primary" : "text-foreground"
-              }`}>
-                No
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Extra/Background actor question */}
         <PollQuestion
           label="If needed, would you be interested in casting as a Background Actor/Extra/Comparse?"
           field="interestedInExtra"
           value={data.interestedInExtra}
+          note="Extras appear in the background of ads and films. Great first experience, paid per day."
         />
 
+        {showBeard && (
+          <PollQuestion
+            label="Are you willing to shave your beard for a role?"
+            field="willingShaveBeard"
+            value={data.willingShaveBeard}
+            note="Some roles need a clean-shaven look. Answering 'Maybe' is fine — we'd discuss per project."
+            third={{ key: "maybe", label: "Maybe" }}
+          />
+        )}
+
+        <PollQuestion
+          label="Are you open to AI-related projects (digital likeness, AI-generated content)?"
+          field="aiProjectsInterest"
+          value={data.aiProjectsInterest}
+          note="Some brands create ads using AI with real people's faces and voices. This asks only if you're OPEN to hearing about such projects. Nothing is ever used without a separate signed agreement for each project."
+          third={{ key: "more", label: "Want to know more" }}
+        />
+
+        {showAlcohol && (
+          <PollQuestion
+            label="Are you comfortable appearing in advertising for alcoholic beverages?"
+            field="alcoholAdsOk"
+            value={data.alcoholAdsOk}
+            note="Only about appearing in advertisements for alcohol brands. It does not ask about your personal life."
+          />
+        )}
       </div>
-
-      {/* Click outside to close */}
-      {isModelingOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setIsModelingOpen(false)}
-        />
-      )}
     </div>
   );
 };
 
-export default TalentsStep;// Force deploy Fri Jan 16 10:02:17 +04 2026
+export default TalentsStep;

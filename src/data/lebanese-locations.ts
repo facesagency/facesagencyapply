@@ -447,19 +447,8 @@ export const skinTones = [
   "Dark",
 ];
 
-export const modelingTypes = [
-  "Fashion Modeling",
-  "Content Modeling",
-  "Fitness Modeling",
-  "Plus-Size Modeling",
-  "Hand Modeling",
-  "Hair Modeling",
-  "Bridal Modeling",
-  "Other",
-];
-
 export const talents = [
-  // Acting Types
+  // Acting
   "Film Acting",
   "TV Acting",
   "Theater Acting",
@@ -468,62 +457,24 @@ export const talents = [
   "Extra/Background Acting",
   "Stunt Acting",
   "Improv Acting",
-  
-  // Dancing Types
-  "Ballet",
-  "Contemporary Dance",
-  "Hip Hop Dance",
-  "Jazz Dance",
-  "Salsa",
-  "Bachata",
-  "Tango",
-  "Ballroom Dance",
-  "Belly Dance",
-  "Dabke (Lebanese Folk)",
-  "Breakdancing",
-  "Modern Dance",
-  "Tap Dance",
-  "Latin Dance",
-  "Street Dance",
-  "Pole Dance",
-  "Aerial Dance",
-  
-  // Music & Singing
-  "Singing (Pop)",
-  "Singing (Classical/Opera)",
-  "Singing (R&B/Soul)",
-  "Singing (Arabic)",
-  "Singing (Jazz)",
-  "Singing (Rock)",
+
+  // Music & Vocal
+  "Singing",
   "Rapping",
   "Beatboxing",
-  "Piano",
-  "Guitar",
-  "Drums",
-  "Violin",
-  "Oud",
   "DJ",
-  
+
   // Hosting & Presenting
   "TV Hosting",
   "Event Hosting/MC",
-  "Radio Presenting",
-  "Podcast Hosting",
+  "Radio/Podcast Hosting",
   "Live Streaming",
-  
-  // Creative & Artistic
+
+  // Content Creation
   "Photography",
   "Videography",
-  "Painting",
-  "Drawing/Illustration",
-  "Graphic Design",
-  "Fashion Design",
   "Makeup Artistry",
-  "Hair Styling",
-  "Nail Art",
-  "Calligraphy",
-  "Sculpture",
-  
+
   // Performance & Entertainment
   "Stand-up Comedy",
   "Magic/Illusion",
@@ -532,20 +483,87 @@ export const talents = [
   "Mime",
   "Puppetry",
   "Juggling",
-  
-  // Languages & Communication
+
+  // Communication
   "Public Speaking",
-  "Motivational Speaking",
   "Sign Language",
-  "Foreign Language Fluency",
-  
-  // Other Skills
-  "Cooking/Culinary Arts",
+
+  // Culinary
+  "Chef / Cooking",
+  "Barista / Coffee Art",
   "Bartending/Mixology",
   "Wine Sommelier",
+
+  // Driving
   "Driving (Stunt/Precision)",
   "Motorcycling",
-  
+
+  "Other",
+];
+
+// Dance styles — separate searchable field (matches HubSpot property dance_styles exactly)
+export const danceStyles = [
+  "Ballet",
+  "Contemporary/Modern",
+  "Hip Hop/Street",
+  "Breakdancing",
+  "Jazz",
+  "Tap",
+  "Ballroom",
+  "Latin (Salsa/Bachata/Tango)",
+  "Belly Dance",
+  "Dabke (Lebanese Folk)",
+  "Other",
+];
+
+// Musical instruments — separate searchable field (matches HubSpot property musical_instruments exactly)
+export const musicalInstruments = [
+  "Piano",
+  "Keyboard / Synthesizer",
+  "Organ",
+  "Acoustic Guitar",
+  "Electric Guitar",
+  "Classical Guitar",
+  "Bass Guitar",
+  "Oud",
+  "Buzuq",
+  "Qanun",
+  "Violin",
+  "Viola",
+  "Cello",
+  "Double Bass",
+  "Drums",
+  "Darbuka / Tabla",
+  "Riq / Tambourine",
+  "Daf",
+  "Cajon",
+  "Percussion (General)",
+  "Flute",
+  "Ney",
+  "Clarinet",
+  "Saxophone",
+  "Trumpet",
+  "Trombone",
+  "Harmonica",
+  "Accordion",
+  "Harp",
+  "Ukulele",
+  "Banjo",
+  "Mandolin",
+  "Bagpipes",
+  "Xylophone / Marimba",
+  "Electronic / Launchpad",
+  "Melodica",
+  "Other",
+];
+
+// Visa options — matches HubSpot property faces_visas_held exactly
+export const visaOptions = [
+  "Schengen",
+  "GCC/Gulf",
+  "USA",
+  "UK",
+  "Canada",
   "Other",
 ];
 
